@@ -534,8 +534,8 @@ hr { border:none; border-top:1px solid var(--border); margin:13px 0; }
     <h2>Shell Site Mapper</h2>
     <p>Enter your Google Maps API key, then plan a route to see Shell Truck Network stops along the way.</p>
     <div class="mpl-steps">
-      <div class="mpl-step"><div class="mpl-num">1</div><span>Enter Google Maps API key &amp; click Load Map</span></div>
-      <div class="mpl-step"><div class="mpl-num">2</div><span>Set Point A (origin) and Point B (destination)</span></div>
+      <div class="mpl-step"><div class="mpl-num">1</div><span>Sign in with your account above</span></div>
+      <div class="mpl-step"><div class="mpl-num">2</div><span>Map loads automatically after sign in</span></div>
       <div class="mpl-step"><div class="mpl-num">3</div><span>Filter by vehicle size &amp; required facilities</span></div>
       <div class="mpl-step"><div class="mpl-num">4</div><span>Customise marker icons &amp; hide irrelevant stops</span></div>
     </div>
@@ -764,6 +764,11 @@ function applyPermissions(profile) {
   const fuelSection = document.getElementById('fuel-price-section');
   if (fuelSection) fuelSection.style.display = profile.can_fuel_pricing ? '' : 'none';
 }
+
+// Auto-load map immediately on page load (API key is embedded)
+window.addEventListener('DOMContentLoaded', () => {
+  initMap(MAPS_API_KEY);
+});
 
 // Auto-restore session on page load
 sb.auth.onAuthStateChange(async (event, session) => {
