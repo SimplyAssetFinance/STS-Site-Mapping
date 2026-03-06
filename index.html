@@ -699,58 +699,73 @@ async function doSupabaseLogin() {
   if (!email || !pw) { errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
 
   setStatus('Signing in…', 'ld');
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
-  if (error) {
-    errEl.textContent = error.message;
-    errEl.style.display = 'block';
-    setStatus('Sign in failed', '');
-    return;
-  }
 
-  currentUser = data.user;
-
-  // Explicitly set session so all subsequent queries are authenticated
-  await sb.auth.setSession(data.session);
-
-  // Load profile + permissions
-  const { data: profile, error: pErr } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
-  if (pErr || !profile) {
-    errEl.textContent = 'Account not found. Contact your administrator.';
+  // Step 1: Authenticate — with 10 second timeout
+  let authData, authError;
+  try {
+    const authPromise = sb.auth.signInWithPassword({ email, password: pw });
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Login timed out. Please try again.')), 10000));
+    const result = await Promise.race([authPromise, timeout]);
+    authData = result.data;
+    authError = result.error;
+  } catch(e) {
+    errEl.textContent = e.message;
     errEl.style.display = 'block';
-    await sb.auth.signOut();
-    setStatus('', '');
-    return;
-  }
-  if (!profile.is_active) {
-    errEl.textContent = 'Your account has been suspended. Contact your administrator.';
-    errEl.style.display = 'block';
-    await sb.auth.signOut();
     setStatus('', '');
     return;
   }
 
-  currentProfile = profile;
+  if (authError) {
+    errEl.textContent = authError.message;
+    errEl.style.display = 'block';
+    setStatus('', '');
+    return;
+  }
 
-  // Update last_login + log the event
-  await sb.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', data.user.id);
-  await sb.from('usage_logs').insert({ user_id: data.user.id, email, action: 'login', detail: 'Signed in to Shell Site Mapper' });
+  // Step 2: Set defaults immediately — don't wait for profile
+  currentUser = authData.user;
+  currentProfile = {
+    is_active: true, can_export_pptx: true, can_export_csv: true,
+    can_fuel_pricing: false, export_count: 0, max_exports: null,
+    full_name: email, role: 'user'
+  };
 
-  // Apply permissions to UI
-  applyPermissions(profile);
+  // Step 3: Show logged-in UI immediately
+  showLoggedIn(email);
+  setStatus('✅ Signed in · Loading profile…', 'ok');
 
-  // Show logged-in state
-  document.getElementById('login-user-name').textContent = profile.full_name || email;
+  // Step 4: Fetch profile in background (non-blocking)
+  setTimeout(async () => {
+    try {
+      const { data: profile } = await sb.from('profiles').select('*').eq('id', authData.user.id).single();
+      if (profile) {
+        if (!profile.is_active) {
+          await sb.auth.signOut();
+          location.reload();
+          return;
+        }
+        currentProfile = profile;
+        applyPermissions(profile);
+        document.getElementById('login-user-name').textContent = profile.full_name || email;
+        sb.from('profiles').update({ last_login: new Date().toISOString() }).eq('id', authData.user.id).then(()=>{});
+        sb.from('usage_logs').insert({ user_id: authData.user.id, email, action: 'login', detail: 'Signed in' }).then(()=>{});
+      }
+      setStatus(`✅ ${typeof SHELL_SITES_RAW !== 'undefined' ? SHELL_SITES_RAW.length + ' Shell sites ready' : 'Map ready'}`, 'ok');
+    } catch(e) {
+      console.warn('Profile load failed:', e);
+      setStatus('✅ Signed in', 'ok');
+    }
+  }, 500);
+}
+
+function showLoggedIn(email) {
+  document.getElementById('login-user-name').textContent = email;
   document.getElementById('login-user-email').textContent = email;
   document.getElementById('login-email').closest('.ig').style.display = 'none';
   document.getElementById('login-pw').closest('.ig').style.display = 'none';
   document.querySelector('[onclick="doSupabaseLogin()"]').style.display = 'none';
   document.getElementById('login-user-info').style.display = 'block';
-
-  // Store API key in hidden field and load map
-  let hf = document.getElementById('api-key');
-  if (!hf) { hf = document.createElement('input'); hf.type='hidden'; hf.id='api-key'; document.body.appendChild(hf); }
-  hf.value = MAPS_API_KEY;
-  initMap(MAPS_API_KEY);
+  applyPermissions(currentProfile);
 }
 
 async function doSignOut() {
@@ -1818,7 +1833,7 @@ async function exportPPTX() {
 
   const clientName = (document.getElementById('pptx-client-name')?.value || '').trim();
   const preparer   = (document.getElementById('pptx-preparer')?.value  || '').trim() || "Aaron O'Neill";
-  const mapsKey    = document.getElementById('api-key')?.value?.trim() || '';
+  const mapsKey    = MAPS_API_KEY || document.getElementById('api-key')?.value?.trim() || '';
 
   // ═══════════════════════════════════════════════════════════
   // CANVAS MAP RENDERER — works from file://, no network calls.
@@ -1828,56 +1843,62 @@ async function exportPPTX() {
   // ═══════════════════════════════════════════════════════════
 
   async function loadStaticMapImg(pathCoords, markerA, markerB, imgSize='640x320') {
-    // Try Google Static Maps API — load via Image element (works from file:// and http)
-    if (mapsKey && pathCoords && pathCoords.length >= 2) {
+    // Fetch via Supabase Edge Function proxy — avoids CORS/canvas-taint on GitHub Pages
+    if (pathCoords && pathCoords.length >= 2) {
       try {
         const decimate = (pts, n) => pts.length <= n ? pts :
           Array.from({length:n}, (_,i) => pts[Math.floor(i*pts.length/n)]);
         const pts = decimate(pathCoords, 50);
         const pathStr = pts.map(p => (+p.lat).toFixed(5)+','+( +p.lng).toFixed(5)).join('|');
-        const qs = [
-          'size='+imgSize,'maptype=roadmap',
-          'path=color:0x2B7BE5ff|weight:5|'+pathStr,
-          markerA?'markers=color:green|label:A|'+(+markerA.lat).toFixed(5)+','+(+markerA.lng).toFixed(5):'',
-          markerB?'markers=color:red|label:B|'  +(+markerB.lat).toFixed(5)+','+(+markerB.lng).toFixed(5):'',
-          'style=feature:poi|visibility:off',
-          'style=feature:transit|visibility:off',
-          'key='+mapsKey
-        ].filter(Boolean).join('&');
-        const url = 'https://maps.googleapis.com/maps/api/staticmap?'+qs;
+        const params = new URLSearchParams();
+        params.set('size', imgSize);
+        params.set('maptype', 'roadmap');
+        params.append('path', 'color:0x2B7BE5ff|weight:5|'+pathStr);
+        if (markerA) params.append('markers', 'color:green|label:A|'+(+markerA.lat).toFixed(5)+','+(+markerA.lng).toFixed(5));
+        if (markerB) params.append('markers', 'color:red|label:B|'+(+markerB.lat).toFixed(5)+','+(+markerB.lng).toFixed(5));
+        params.append('style', 'feature:poi|visibility:off');
+        params.append('style', 'feature:transit|visibility:off');
 
-        // Load via Image element into a canvas — works cross-origin with Maps API
+        const proxyUrl = 'https://feibvcvjgknrwtejoywd.supabase.co/functions/v1/static-map-proxy?' + params.toString();
+
         const dataUrl = await new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => {
-            // Draw the loaded map image onto our canvas
-            const W = 640, H = 320;
-            let cv = document.getElementById('__sts_cv__');
-            if (!cv) {
-              cv = document.createElement('canvas');
-              cv.id = '__sts_cv__';
-              cv.style.cssText = 'position:fixed;left:-9999px;top:0;';
-              document.body.appendChild(cv);
-            }
-            cv.width = W; cv.height = H;
-            const ctx = cv.getContext('2d');
-            ctx.drawImage(img, 0, 0, W, H);
-            // Brand strip
-            ctx.fillStyle = 'rgba(11,31,58,0.85)'; ctx.fillRect(0, H-22, W, 22);
-            ctx.fillStyle = '#FBCE07'; ctx.fillRect(0, H-23, W, 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = '9px Arial';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText('Route Map · Simply Transport Solutions', W/2, H-11);
-            const result = cv.toDataURL('image/jpeg', 0.9);
-            resolve(result && result.length > 2000 ? result : null);
-          };
-          img.onerror = () => resolve(null);
-          img.src = url;
+          fetch(proxyUrl)
+            .then(r => r.ok ? r.blob() : Promise.reject('HTTP ' + r.status))
+            .then(blob => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const W = 640, H = 320;
+                const img = new Image();
+                img.onload = () => {
+                  let cv = document.getElementById('__sts_cv__');
+                  if (!cv) {
+                    cv = document.createElement('canvas');
+                    cv.id = '__sts_cv__';
+                    cv.style.cssText = 'position:fixed;left:-9999px;top:0;';
+                    document.body.appendChild(cv);
+                  }
+                  cv.width = W; cv.height = H;
+                  const ctx = cv.getContext('2d');
+                  ctx.drawImage(img, 0, 0, W, H);
+                  ctx.fillStyle = 'rgba(11,31,58,0.85)'; ctx.fillRect(0, H-22, W, 22);
+                  ctx.fillStyle = '#FBCE07'; ctx.fillRect(0, H-23, W, 2);
+                  ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = '9px Arial';
+                  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                  ctx.fillText('Route Map · Simply Transport Solutions', W/2, H-11);
+                  const result = cv.toDataURL('image/jpeg', 0.9);
+                  resolve(result && result.length > 2000 ? result : null);
+                };
+                img.onerror = () => resolve(null);
+                img.src = reader.result;
+              };
+              reader.onerror = () => resolve(null);
+              reader.readAsDataURL(blob);
+            })
+            .catch(e => { console.warn('Static map proxy failed:', e); resolve(null); });
         });
 
         if (dataUrl) return dataUrl;
-      } catch(e) { /* fall through to canvas */ }
+      } catch(e) { console.warn('loadStaticMapImg error:', e); }
     }
     // Canvas fallback — plain background with route line
     return renderCanvasMap(pathCoords, markerA, markerB);
