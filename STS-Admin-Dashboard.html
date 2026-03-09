@@ -483,7 +483,17 @@ async function saveUser() {
   } else {
     // CREATE new via Admin API (needs service role) — use edge function instead
     if (!email || !pw) { errEl.textContent = 'Email and password required for new users.'; errEl.style.display = 'block'; return; }
-    const { data: { session } } = await sb.auth.getSession();
+    let { data: { session } } = await sb.auth.getSession();
+    // If session missing, try refreshing it once
+    if (!session) {
+      const { data: refreshData } = await sb.auth.refreshSession();
+      session = refreshData?.session;
+    }
+    if (!session) {
+      errEl.textContent = 'Session expired — please sign out and sign back in, then try again.';
+      errEl.style.display = 'block';
+      return;
+    }
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
       method: 'POST',
       headers: {
