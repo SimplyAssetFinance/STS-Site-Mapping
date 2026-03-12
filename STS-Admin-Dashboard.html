@@ -5,185 +5,160 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>STS Admin Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&family=Roboto:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600&family=Poppins:wght@300;400;500;600&family=Raleway:wght@300;400;500;600&family=Lato:wght@300;400;700&family=Open+Sans:wght@300;400;600&display=swap');
+  :root { --navy:#0B1F3A; --navy2:#162E4A; --primary:#2899D5; --accent:#FBCE07; --red:#D71D28; --white:#FFFFFF; --off:#F4F7FB; --border:#D0DCE8; --muted:#6B7A8D; --green:#16A34A; --orange:#E87722; --bg:#0B1F3A; --bg2:#162E4A; --font-colour:#FFFFFF; --font-family:'DM Sans',sans-serif; --heading-colour:#FBCE07; --subheading-colour:#FFFFFF; --menu-colour:#6B7A8D; --menu-active-colour:#FFFFFF; }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; font-family:var(--font-family) !important; }
+  body { background:var(--bg); color:var(--font-colour); min-height:100vh; }
+  .topbar, .stat-card, .section, .modal, .login-box, .settings-card { background:var(--bg2); }
+  .login-logo, .topbar-brand-text, .section-title, .stat-value, .modal h3, .settings-card h4 { font-family:'Bebas Neue',sans-serif !important; color:var(--heading-colour) !important; }
+  .stat-label, .tbl th, .modal label, .field-row label, .login-sub, .perm-label, .topbar-user { color:var(--subheading-colour) !important; }
+  .tab-btn { color:var(--menu-colour) !important; }
+  .tab-btn.active { color:var(--menu-active-colour) !important; background:var(--primary); }
+  input, select, textarea, select option { color:var(--font-colour) !important; }
+  button { color:inherit; }
+  .btn-login { color:white !important; }
+  .mono, .log-action { font-family:'DM Mono',monospace !important; }
 
-  :root {
-    --navy:    #0B1F3A;
-    --navy2:   #162E4A;
-    --blue:    #2899D5;
-    --red:     #D71D28;
-    --yellow:  #FBCE07;
-    --white:   #FFFFFF;
-    --off:     #F4F7FB;
-    --border:  #D0DCE8;
-    --muted:   #6B7A8D;
-    --green:   #16A34A;
-    --orange:  #E87722;
-  }
+  /* TABS */
+  .tab-nav { display:flex; gap:4px; margin-bottom:28px; background:rgba(255,255,255,0.04); border-radius:10px; padding:4px; width:fit-content; }
+  .tab-btn { padding:8px 20px; border-radius:7px; border:none; font-size:13px; font-weight:600; cursor:pointer; background:transparent; transition:all 0.2s; }
+  .tab-btn.active { background:var(--primary); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* LOGIN */
+  #login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--navy); background-image:radial-gradient(ellipse at 20% 50%,rgba(40,153,213,0.15) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(215,29,40,0.1) 0%,transparent 50%); }
+  .login-box { background:var(--navy2); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:48px 40px; width:400px; box-shadow:0 32px 64px rgba(0,0,0,0.4); }
+  .login-logo { font-family:'Bebas Neue',sans-serif !important; font-size:28px; letter-spacing:3px; margin-bottom:4px; }
+  .login-sub { font-size:13px; color:var(--muted); margin-bottom:36px; }
+  .login-logo-img { height:48px; object-fit:contain; margin-bottom:12px; display:block; }
+  .login-box label { display:block; font-size:11px; font-weight:600; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+  .login-box input { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px 14px; color:white !important; font-size:14px; margin-bottom:20px; transition:border-color 0.2s; }
+  .login-box input:focus { outline:none; border-color:var(--primary); }
+  .btn-login { width:100%; background:var(--primary); color:white !important; border:none; border-radius:8px; padding:13px; font-size:15px; font-weight:600; cursor:pointer; transition:background 0.2s; }
+  .btn-login:hover { filter:brightness(0.85); }
+  #login-error { color:#ff6b6b; font-size:13px; margin-top:12px; display:none; }
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--navy);
-    color: var(--white);
-    min-height: 100vh;
-  }
+  /* APP */
+  #app { display:none; min-height:100vh; }
+  .topbar { background:var(--bg2); border-bottom:1px solid rgba(255,255,255,0.06); padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+  .topbar-brand { display:flex; align-items:center; gap:12px; }
+  .topbar-brand-text { font-family:'Bebas Neue',sans-serif !important; font-size:22px; letter-spacing:3px; }
+  .topbar-logo { height:36px; object-fit:contain; }
+  .topbar-right { display:flex; align-items:center; gap:16px; }
+  .topbar-user { font-size:13px; color:var(--muted); }
+  .btn-signout { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--muted); border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; transition:all 0.2s; }
+  .btn-signout:hover { background:rgba(215,29,40,0.2); color:#ff6b6b; border-color:rgba(215,29,40,0.3); }
+  .main { padding:32px; max-width:1200px; margin:0 auto; }
 
-  /* ── LOGIN ── */
-  #login-screen {
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh;
-    background: var(--navy);
-    background-image: radial-gradient(ellipse at 20% 50%, rgba(40,153,213,0.15) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(215,29,40,0.1) 0%, transparent 50%);
-  }
-  .login-box {
-    background: var(--navy2);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 48px 40px;
-    width: 400px;
-    box-shadow: 0 32px 64px rgba(0,0,0,0.4);
-  }
-  .login-logo {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
-    color: var(--yellow);
-    letter-spacing: 3px;
-    margin-bottom: 4px;
-  }
-  .login-sub { font-size: 13px; color: var(--muted); margin-bottom: 36px; }
-  .login-box label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
-  .login-box input {
-    width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; padding: 12px 14px; color: var(--white); font-family: 'DM Sans', sans-serif;
-    font-size: 14px; margin-bottom: 20px; transition: border-color 0.2s;
-  }
-  .login-box input:focus { outline: none; border-color: var(--blue); }
-  .btn-login {
-    width: 100%; background: var(--blue); color: white; border: none; border-radius: 8px;
-    padding: 13px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
-    cursor: pointer; transition: background 0.2s;
-  }
-  .btn-login:hover { background: #1d7ab0; }
-  #login-error { color: #ff6b6b; font-size: 13px; margin-top: 12px; display: none; }
+  /* STATS */
+  .stats-row { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:32px; }
+  .stat-card { background:var(--bg2); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:20px 24px; }
+  .stat-label { font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+  .stat-value { font-family:'Bebas Neue',sans-serif !important; font-size:38px; line-height:1; }
+  .stat-value.blue   { color:var(--primary); }
+  .stat-value.green  { color:var(--green); }
+  .stat-value.red    { color:var(--red); }
+  .stat-value.yellow { color:var(--accent); }
+  .stat-value.orange { color:var(--orange); }
 
-  /* ── APP SHELL ── */
-  #app { display: none; min-height: 100vh; }
+  /* SECTION */
+  .section { background:var(--bg2); border:1px solid rgba(255,255,255,0.06); border-radius:12px; margin-bottom:24px; overflow:hidden; }
+  .section-header { padding:18px 24px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  .section-title { font-family:'Bebas Neue',sans-serif !important; font-size:18px; letter-spacing:2px; }
 
-  .topbar {
-    background: var(--navy2);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding: 0 32px;
-    height: 60px;
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
-  .topbar-brand { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--yellow); letter-spacing: 3px; }
-  .topbar-right { display: flex; align-items: center; gap: 16px; }
-  .topbar-user { font-size: 13px; color: var(--muted); }
-  .btn-signout {
-    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-    color: var(--muted); border-radius: 6px; padding: 6px 12px; font-size: 12px;
-    cursor: pointer; transition: all 0.2s;
-  }
-  .btn-signout:hover { background: rgba(215,29,40,0.2); color: #ff6b6b; border-color: rgba(215,29,40,0.3); }
+  /* TABLE */
+  .tbl { width:100%; border-collapse:collapse; }
+  .tbl th { font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; padding:12px 16px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .tbl td { padding:12px 16px; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+  .tbl tr:last-child td { border-bottom:none; }
+  .tbl tr:hover td { background:rgba(255,255,255,0.02); }
 
-  .main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+  /* BADGES */
+  .badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+  .badge-admin { background:rgba(251,206,7,0.15); color:var(--accent); }
+  .badge-user  { background:rgba(40,153,213,0.15); color:var(--primary); }
 
-  /* ── STAT CARDS ── */
-  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
-  .stat-card {
-    background: var(--navy2); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 12px; padding: 20px 24px;
-  }
-  .stat-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
-  .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 38px; line-height: 1; }
-  .stat-value.blue  { color: var(--blue); }
-  .stat-value.green { color: var(--green); }
-  .stat-value.red   { color: var(--red); }
-  .stat-value.yellow{ color: var(--yellow); }
-
-  /* ── SECTION HEADERS ── */
-  .section { background: var(--navy2); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
-  .section-header {
-    padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--yellow); }
-
-  /* ── TABLE ── */
-  .tbl { width: 100%; border-collapse: collapse; }
-  .tbl th { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; padding: 12px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .tbl td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
-  .tbl tr:last-child td { border-bottom: none; }
-  .tbl tr:hover td { background: rgba(255,255,255,0.02); }
-
-  /* ── BADGES ── */
-  .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
-  .badge-active   { background: rgba(22,163,74,0.15);  color: #4ade80; }
-  .badge-inactive { background: rgba(215,29,40,0.15);  color: #f87171; }
-  .badge-admin    { background: rgba(251,206,7,0.15);   color: var(--yellow); }
-  .badge-user     { background: rgba(40,153,213,0.15);  color: var(--blue); }
-
-  /* ── TOGGLE ── */
-  .tog { width: 36px; height: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; border: none; }
-  .tog.on { background: var(--green); }
+  /* TOGGLE */
+  .tog { width:36px; height:20px; background:rgba(255,255,255,0.1); border-radius:10px; position:relative; cursor:pointer; transition:background 0.2s; border:none; flex-shrink:0; }
+  .tog.on { background:var(--green); }
   .tog::after { content:''; position:absolute; left:3px; top:3px; width:14px; height:14px; background:white; border-radius:50%; transition:left 0.2s; }
   .tog.on::after { left:19px; }
 
-  /* ── BUTTONS ── */
-  .btn { border: none; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'DM Sans', sans-serif; }
-  .btn-blue   { background: var(--blue); color: white; }
-  .btn-blue:hover { background: #1d7ab0; }
-  .btn-red    { background: rgba(215,29,40,0.15); color: #f87171; }
-  .btn-red:hover { background: rgba(215,29,40,0.3); }
-  .btn-ghost  { background: rgba(255,255,255,0.06); color: var(--muted); }
-  .btn-ghost:hover { background: rgba(255,255,255,0.1); color: white; }
-  .btn-green  { background: var(--green); color: white; }
-  .btn-green:hover { background: #15803d; }
+  /* BUTTONS */
+  .btn { border:none; border-radius:6px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-blue  { background:var(--primary); color:white !important; }
+  .btn-blue:hover { filter:brightness(0.85); }
+  .btn-red   { background:rgba(215,29,40,0.15); color:#f87171 !important; }
+  .btn-red:hover { background:rgba(215,29,40,0.3); }
+  .btn-ghost { background:rgba(255,255,255,0.06); color:var(--muted) !important; }
+  .btn-ghost:hover { background:rgba(255,255,255,0.1); color:white !important; }
+  .btn-green { background:var(--green); color:white !important; }
+  .btn-green:hover { background:#15803d; }
+  .btn-yellow { background:var(--accent); color:#0B1F3A !important; font-weight:700; }
+  .btn-yellow:hover { filter:brightness(0.9); }
 
-  /* ── MODAL ── */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000;
-    display: none; align-items: center; justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: var(--navy2); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 16px; padding: 32px; width: 480px; max-width: 95vw;
-    box-shadow: 0 32px 64px rgba(0,0,0,0.5);
-  }
-  .modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--yellow); margin-bottom: 24px; }
-  .modal label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; margin-top: 16px; }
-  .modal input, .modal select {
-    width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; padding: 10px 12px; color: var(--white); font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-  }
-  .modal select option { background: var(--navy2); }
-  .modal input:focus, .modal select:focus { outline: none; border-color: var(--blue); }
-  .modal-btns { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
-  .perm-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .perm-label { font-size: 13px; }
-  .perm-sub { font-size: 11px; color: var(--muted); }
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--bg2); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:32px; width:500px; max-width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 32px 64px rgba(0,0,0,0.5); }
+  .modal h3 { font-family:'Bebas Neue',sans-serif !important; font-size:22px; letter-spacing:2px; margin-bottom:24px; }
+  .modal label { display:block; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; margin-top:16px; }
+  .modal input,.modal select { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px; color:white !important; font-size:14px; }
+  .modal select option { background:var(--bg2); }
+  .modal input:focus,.modal select:focus { outline:none; border-color:var(--primary); }
+  .modal-btns { display:flex; gap:10px; margin-top:24px; justify-content:flex-end; }
+  .perm-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+  .perm-label { font-size:13px; }
+  .perm-sub { font-size:11px; color:var(--muted); }
 
-  /* ── LOGS ── */
-  .log-action { font-family: 'DM Mono', monospace; font-size: 11px; }
-  .log-login   { color: var(--blue); }
-  .log-pptx    { color: var(--yellow); }
-  .log-route   { color: var(--green); }
+  /* LOG FILTERS */
+  .log-filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .log-filters select,.log-filters input { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:6px 10px; color:white !important; font-size:12px; }
+  .log-filters select option { background:var(--bg2); }
+  .log-action { font-family:'DM Mono',monospace !important; font-size:11px; padding:2px 7px; border-radius:4px; }
+  .log-login   { color:var(--primary); background:rgba(40,153,213,0.12); }
+  .log-pptx    { color:var(--accent);  background:rgba(251,206,7,0.12); }
+  .log-route   { color:var(--green);   background:rgba(22,163,74,0.12); }
+  .log-csv     { color:var(--orange);  background:rgba(232,119,34,0.12); }
+  .log-signout { color:var(--muted);   background:rgba(107,122,141,0.12); }
 
-  /* ── MISC ── */
-  .empty { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
-  .mono { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
-  #toast {
-    position: fixed; bottom: 24px; right: 24px; background: var(--green);
-    color: white; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
-    display: none; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  }
+  /* SETTINGS */
+  .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; padding:24px; }
+  .settings-card { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:20px; }
+  .settings-card h4 { font-family:'Bebas Neue',sans-serif !important; font-size:16px; letter-spacing:2px; margin-bottom:16px; }
+  .field-row { margin-bottom:16px; }
+  .field-row label { display:block; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+  .field-row input,.field-row select { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px; color:white !important; font-size:14px; }
+  .field-row input:focus { outline:none; border-color:var(--primary); }
+  .colour-row { display:flex; align-items:center; gap:12px; }
+  .colour-row input[type=color] { width:44px; height:36px; border:1px solid rgba(255,255,255,0.1); border-radius:6px; background:transparent; cursor:pointer; padding:2px; }
+  .colour-hex { font-family:'DM Mono',monospace !important; font-size:12px; color:var(--muted); }
+  .logo-preview { width:140px; height:64px; object-fit:contain; background:rgba(255,255,255,0.05); border-radius:8px; padding:8px; margin-top:10px; display:none; }
+  .upload-area { border:1px dashed rgba(255,255,255,0.2); border-radius:8px; padding:16px; text-align:center; cursor:pointer; font-size:13px; color:var(--muted); transition:all 0.2s; }
+  .upload-area:hover { border-color:var(--primary); color:var(--primary); }
+
+  /* LEADS & BLOG */
+  .lead-new       { color:var(--primary); background:rgba(40,153,213,0.15); }
+  .lead-contacted { color:var(--accent);  background:rgba(251,206,7,0.15); }
+  .lead-qualified { color:var(--green);   background:rgba(22,163,74,0.15); }
+  .lead-converted { color:var(--orange);  background:rgba(232,119,34,0.15); }
+  .lead-closed    { color:var(--muted);   background:rgba(107,122,141,0.15); }
+  .blog-published { color:var(--green);   background:rgba(22,163,74,0.15); }
+  .blog-draft     { color:var(--muted);   background:rgba(107,122,141,0.15); }
+  .lead-modal-field label { display:block; font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+  .lead-modal-field { margin-bottom:14px; }
+  .blog-modal textarea { width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px 12px; color:white !important; font-size:14px; resize:vertical; }
+  .blog-modal textarea:focus { outline:none; border-color:var(--primary); }
+
+  /* MISC */
+  .empty { padding:40px; text-align:center; color:var(--muted); font-size:13px; }
+  .mono { font-family:'DM Mono',monospace !important; font-size:12px; color:var(--muted); }
+  #toast { position:fixed; bottom:24px; right:24px; background:var(--green); color:white; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; display:none; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+  #toast.err { background:var(--red); }
 </style>
 </head>
 <body>
@@ -191,7 +166,8 @@
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">STS ADMIN</div>
+    <img id="login-logo-img" class="login-logo-img" src="" alt="" style="display:none" />
+    <div class="login-logo" id="login-logo-text">STS ADMIN</div>
     <div class="login-sub">Simply Transport Solutions · Dashboard</div>
     <label>Email</label>
     <input type="email" id="login-email" placeholder="info@simplyassetfinance.com.au" />
@@ -205,7 +181,10 @@
 <!-- APP -->
 <div id="app">
   <div class="topbar">
-    <div class="topbar-brand">STS ADMIN DASHBOARD</div>
+    <div class="topbar-brand">
+      <img id="topbar-logo-img" class="topbar-logo" src="" alt="" style="display:none" />
+      <div class="topbar-brand-text" id="topbar-logo-text">STS ADMIN DASHBOARD</div>
+    </div>
     <div class="topbar-right">
       <span class="topbar-user" id="topbar-email"></span>
       <button class="btn-signout" onclick="doSignout()">Sign Out</button>
@@ -220,47 +199,423 @@
       <div class="stat-card"><div class="stat-label">Active Users</div><div class="stat-value green" id="stat-active">—</div></div>
       <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value red" id="stat-suspended">—</div></div>
       <div class="stat-card"><div class="stat-label">Exports Today</div><div class="stat-value yellow" id="stat-exports">—</div></div>
+      <div class="stat-card"><div class="stat-label">Logins Today</div><div class="stat-value orange" id="stat-logins">—</div></div>
     </div>
 
-    <!-- USERS TABLE -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">Users</div>
-        <button class="btn btn-green" onclick="openAddUser()">+ Add User</button>
-      </div>
-      <table class="tbl" id="users-table">
-        <thead>
-          <tr>
-            <th>Name / Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Exports</th>
-            <th>Last Login</th>
-            <th>Permissions</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="users-tbody">
-          <tr><td colspan="7" class="empty">Loading…</td></tr>
-        </tbody>
-      </table>
+    <!-- TABS -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('users',this)">👥 Users</button>
+      <button class="tab-btn" onclick="switchTab('logs',this)">📋 Activity Log</button>
+      <button class="tab-btn" onclick="switchTab('tgp',this)">⛽ TGP Pricing</button>
+      <button class="tab-btn" onclick="switchTab('settings',this)">⚙️ Settings</button>
+      <button class="tab-btn" onclick="switchTab('leads',this)">📋 Leads</button>
+      <button class="tab-btn" onclick="switchTab('blog',this)">✍️ Blog</button>
+      <button class="tab-btn" onclick="switchTab('analytics',this)">📊 Analytics</button>
     </div>
 
-    <!-- USAGE LOGS -->
-    <div class="section">
-      <div class="section-header">
-        <div class="section-title">Usage Log</div>
-        <button class="btn btn-ghost" onclick="loadLogs()">↻ Refresh</button>
+    <!-- TAB: USERS -->
+    <div class="tab-panel active" id="tab-users">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Users</div>
+          <button class="btn btn-green" onclick="openAddUser()">+ Add User</button>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Name / Email</th><th>Role</th><th>Status</th><th>Exports</th><th>Last Login</th><th>Permissions</th><th>Actions</th></tr></thead>
+          <tbody id="users-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
       </div>
-      <table class="tbl">
-        <thead>
-          <tr><th>Time</th><th>User</th><th>Action</th><th>Detail</th></tr>
-        </thead>
-        <tbody id="logs-tbody">
-          <tr><td colspan="4" class="empty">Loading…</td></tr>
-        </tbody>
-      </table>
     </div>
+
+    <!-- TAB: ACTIVITY LOG -->
+    <div class="tab-panel" id="tab-logs">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Activity Log</div>
+          <div class="log-filters">
+            <select id="log-filter-user" onchange="loadLogs()"><option value="">All Users</option></select>
+            <select id="log-filter-action" onchange="loadLogs()">
+              <option value="">All Actions</option>
+              <option value="login">Login</option>
+              <option value="pptx_export">PPTX Export</option>
+              <option value="csv_export">CSV Export</option>
+              <option value="route_planned">Route Planned</option>
+              <option value="signout">Sign Out</option>
+            </select>
+            <input type="date" id="log-filter-date" onchange="loadLogs()" style="color-scheme:dark" />
+            <button class="btn btn-ghost" onclick="clearLogFilters()">Clear</button>
+            <button class="btn btn-ghost" onclick="loadLogs()">↻ Refresh</button>
+          </div>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Time (AEST)</th><th>User</th><th>Action</th><th>Detail</th><th>Device / Info</th></tr></thead>
+          <tbody id="logs-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: TGP PRICING -->
+    <div class="tab-panel" id="tab-tgp">
+
+      <!-- UPLOAD + STATS ROW -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="stat-card" style="grid-column:1/3">
+          <div class="stat-label">AIP Auto-Fetch (Daily, Weekdays)</div>
+          <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px">
+            <span style="font-size:11px;padding:3px 10px;border-radius:4px;background:rgba(22,163,74,0.15);color:#4ade80;font-weight:600">● AUTO-FETCH ACTIVE</span>
+            <span style="font-size:11px;color:var(--muted)">Mon–Fri 9am AEST from AIP.com.au</span>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Fetches ULP &amp; Diesel TGP for all 7 capital cities automatically. Use <strong style="color:white">Fetch Now</strong> to pull today's data immediately.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-blue" onclick="fetchAIPNow()" id="aip-fetch-btn">⬇ Fetch Now from AIP</button>
+            <div style="width:1px;height:32px;background:rgba(255,255,255,0.08)"></div>
+            <div class="upload-area" style="flex:1;min-width:160px;padding:8px 12px" onclick="document.getElementById('tgp-file-input').click()">
+              📁 Or upload manual file (Excel/CSV)
+            </div>
+            <input type="file" id="tgp-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleTGPFileSelect(this)" />
+            <button class="btn btn-green" onclick="uploadTGPData()" id="tgp-upload-btn" style="display:none">⬆ Upload</button>
+          </div>
+          <div id="tgp-file-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+          <div id="tgp-preview-table" style="margin-top:12px;max-height:160px;overflow-y:auto;display:none"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Latest Upload</div>
+          <div class="stat-value yellow" id="tgp-stat-latest">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tgp-stat-latest-sub"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Uploads</div>
+          <div class="stat-value blue" id="tgp-stat-count">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">historical records</div>
+        </div>
+      </div>
+
+      <!-- CHARTS ROW -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Price Trend</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="tgp-chart-product" onchange="renderTGPCharts()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px">
+                <option value="">All Products</option>
+              </select>
+              <select id="tgp-chart-range" onchange="renderTGPCharts()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px">
+                <option value="30">Last 30 days</option>
+                <option value="60">Last 60 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last 12 months</option>
+              </select>
+            </div>
+          </div>
+          <div style="padding:20px">
+            <canvas id="tgp-line-chart" height="200"></canvas>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header"><div class="section-title">Latest Prices</div></div>
+          <div style="padding:16px">
+            <table class="tbl">
+              <thead><tr><th>Product</th><th>Price</th><th>Region</th></tr></thead>
+              <tbody id="tgp-latest-tbody"><tr><td colspan="3" class="empty">No data yet</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPLOAD HISTORY -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Upload History</div>
+          <div style="display:flex;gap:8px">
+            <input type="date" id="tgp-hist-from" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px;color-scheme:dark" onchange="loadTGPHistory()" />
+            <input type="date" id="tgp-hist-to" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px;color-scheme:dark" onchange="loadTGPHistory()" />
+            <button class="btn btn-ghost" onclick="document.getElementById('tgp-hist-from').value='';document.getElementById('tgp-hist-to').value='';loadTGPHistory()">Clear</button>
+          </div>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Date</th><th>Source</th><th>Filename</th><th>Rows</th><th>Products</th><th>Regions</th><th>Actions</th></tr></thead>
+          <tbody id="tgp-history-tbody"><tr><td colspan="7" class="empty">No uploads yet</td></tr></tbody>
+        </table>
+      </div>
+
+    </div><!-- /tab-tgp -->
+
+    <!-- TAB: SETTINGS -->
+    <div class="tab-panel" id="tab-settings">
+
+      <!-- BRANDING -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Branding &amp; Appearance</div>
+          <button class="btn btn-yellow" onclick="saveBranding()">💾 Save Branding</button>
+        </div>
+        <div class="settings-grid">
+
+          <!-- LOGO -->
+          <div class="settings-card">
+            <h4>Dashboard Logo</h4>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Shown in top bar and login screen. PNG or SVG recommended.</p>
+            <div class="upload-area" onclick="document.getElementById('logo-file-input').click()">📁 Click to upload logo</div>
+            <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="handleLogoUpload(this)" />
+            <img id="logo-preview" class="logo-preview" src="" alt="Logo preview" />
+            <div id="logo-status" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
+          </div>
+
+          <!-- COLOUR SCHEME -->
+          <div class="settings-card">
+            <h4>Colour Scheme</h4>
+            <div class="field-row">
+              <label>Primary Colour (buttons, highlights)</label>
+              <div class="colour-row">
+                <input type="color" id="colour-primary" value="#2899D5" oninput="syncColour('primary',this.value)" />
+                <span class="colour-hex" id="colour-primary-hex">#2899D5</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <label>Accent Colour</label>
+              <div class="colour-row">
+                <input type="color" id="colour-accent" value="#FBCE07" oninput="syncColour('accent',this.value)" />
+                <span class="colour-hex" id="colour-accent-hex">#FBCE07</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <label>Background Colour (main)</label>
+              <div class="colour-row">
+                <input type="color" id="colour-bg" value="#0B1F3A" oninput="syncColour('bg',this.value)" />
+                <span class="colour-hex" id="colour-bg-hex">#0B1F3A</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <label>Panel Colour (cards, top bar)</label>
+              <div class="colour-row">
+                <input type="color" id="colour-bg2" value="#162E4A" oninput="syncColour('bg2',this.value)" />
+                <span class="colour-hex" id="colour-bg2-hex">#162E4A</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TYPOGRAPHY — full width -->
+          <div class="settings-card" style="grid-column:1/-1">
+            <h4>Typography &amp; Text Colours</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px">
+              <div class="field-row" style="margin:0;grid-column:1/3">
+                <label>Font Family — applies to all text throughout the dashboard</label>
+                <select id="font-family-select" onchange="syncFont(this.value)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;color:white !important;font-size:14px;width:100%">
+                  <option value="DM Sans">DM Sans (default)</option>
+                  <option value="Inter">Inter</option>
+                  <option value="Roboto">Roboto</option>
+                  <option value="Montserrat">Montserrat</option>
+                  <option value="Poppins">Poppins</option>
+                  <option value="Raleway">Raleway</option>
+                  <option value="Lato">Lato</option>
+                  <option value="Open Sans">Open Sans</option>
+                </select>
+              </div>
+              <div class="field-row" style="margin:0">
+                <label>Body Font Colour</label>
+                <div class="colour-row">
+                  <input type="color" id="colour-font" value="#FFFFFF" oninput="syncColour('font-colour',this.value)" />
+                  <span class="colour-hex" id="colour-font-hex">#FFFFFF</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+              <div class="field-row" style="margin:0">
+                <label>Heading Colour</label>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Section titles, modal headers, card titles</div>
+                <div class="colour-row">
+                  <input type="color" id="colour-heading" value="#FBCE07" oninput="syncColour('heading-colour',this.value)" />
+                  <span class="colour-hex" id="colour-heading-hex">#FBCE07</span>
+                </div>
+                <div style="margin-top:8px;font-size:13px;color:var(--heading-colour);font-family:'Bebas Neue',sans-serif;letter-spacing:2px">HEADING PREVIEW</div>
+              </div>
+              <div class="field-row" style="margin:0">
+                <label>Subheading Colour</label>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Labels, table headers, stat labels</div>
+                <div class="colour-row">
+                  <input type="color" id="colour-subheading" value="#FFFFFF" oninput="syncColour('subheading-colour',this.value)" />
+                  <span class="colour-hex" id="colour-subheading-hex">#FFFFFF</span>
+                </div>
+                <div style="margin-top:8px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--subheading-colour)">SUBHEADING PREVIEW</div>
+              </div>
+              <div class="field-row" style="margin:0">
+                <label>Menu / Tab Colour</label>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Inactive tab buttons</div>
+                <div class="colour-row">
+                  <input type="color" id="colour-menu" value="#6B7A8D" oninput="syncColour('menu-colour',this.value)" />
+                  <span class="colour-hex" id="colour-menu-hex">#6B7A8D</span>
+                </div>
+                <div style="margin-top:8px;font-size:13px;font-weight:600;color:var(--menu-colour)">Menu Item</div>
+              </div>
+              <div class="field-row" style="margin:0">
+                <label>Active Menu Colour</label>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Active/selected tab text</div>
+                <div class="colour-row">
+                  <input type="color" id="colour-menu-active" value="#FFFFFF" oninput="syncColour('menu-active-colour',this.value)" />
+                  <span class="colour-hex" id="colour-menu-active-hex">#FFFFFF</span>
+                </div>
+                <div style="margin-top:8px;font-size:13px;font-weight:600;color:var(--menu-active-colour)">Active Item</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:8px;font-size:12px;color:var(--muted)">
+              All changes preview live. Click <strong style="color:white">Save Branding</strong> to persist across sessions.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CREDENTIALS -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Edit User Credentials</div>
+        </div>
+        <div style="padding:24px">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Update a user's login email or password. Leave a field blank to leave it unchanged.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:680px">
+            <div class="field-row" style="margin:0;grid-column:1/-1">
+              <label>Select User</label>
+              <select id="cred-user-select" onchange="loadCredFields()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;color:white !important;font-size:14px;width:100%">
+                <option value="">— Choose a user —</option>
+              </select>
+            </div>
+            <div class="field-row" style="margin:0">
+              <label>New Email Address</label>
+              <input type="email" id="cred-email" placeholder="Leave blank to keep existing" />
+            </div>
+            <div class="field-row" style="margin:0">
+              <label>New Password</label>
+              <input type="password" id="cred-password" placeholder="Leave blank to keep existing" />
+            </div>
+          </div>
+          <div id="cred-error" style="color:#f87171;font-size:13px;margin-top:12px;display:none"></div>
+          <button class="btn btn-blue" style="margin-top:20px" onclick="saveCredentials()">Update Credentials</button>
+        </div>
+      </div>
+
+    </div><!-- /tab-settings -->
+
+    <!-- TAB: LEADS -->
+    <div class="tab-panel" id="tab-leads">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+        <div class="stat-card"><div class="stat-label">New</div><div class="stat-value blue" id="leads-stat-new">—</div></div>
+        <div class="stat-card"><div class="stat-label">Contacted</div><div class="stat-value yellow" id="leads-stat-contacted">—</div></div>
+        <div class="stat-card"><div class="stat-label">Qualified</div><div class="stat-value green" id="leads-stat-qualified">—</div></div>
+        <div class="stat-card"><div class="stat-label">Converted</div><div class="stat-value orange" id="leads-stat-converted">—</div></div>
+      </div>
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Consultation Leads</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="leads-filter-status" onchange="loadLeads()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;color:white !important;font-size:12px">
+              <option value="">All Statuses</option>
+              <option value="new">New</option>
+              <option value="contacted">Contacted</option>
+              <option value="qualified">Qualified</option>
+              <option value="converted">Converted</option>
+              <option value="closed">Closed</option>
+            </select>
+            <input type="date" id="leads-filter-date" onchange="loadLeads()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;color:white !important;font-size:12px;color-scheme:dark" />
+            <button class="btn btn-ghost" onclick="document.getElementById('leads-filter-status').value='';document.getElementById('leads-filter-date').value='';loadLeads()">Clear</button>
+            <button class="btn btn-ghost" onclick="loadLeads()">↻ Refresh</button>
+          </div>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Name / Business</th><th>Contact</th><th>Fleet Size</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="leads-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /tab-leads -->
+
+    <!-- TAB: BLOG -->
+    <div class="tab-panel" id="tab-blog">
+      <div class="section">
+        <div class="section-header">
+          <div class="section-title">Blog Posts</div>
+          <button class="btn btn-green" onclick="openBlogModal()">+ New Post</button>
+        </div>
+        <table class="tbl">
+          <thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Published</th><th>Actions</th></tr></thead>
+          <tbody id="blog-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /tab-blog -->
+
+    <!-- TAB: ANALYTICS -->
+    <div class="tab-panel" id="tab-analytics">
+      <!-- Stat cards row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px">
+        <div class="stat-card" style="border-radius:12px;padding:20px">
+          <div class="stat-label" style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Today's Views</div>
+          <div class="stat-value" id="an-today-views" style="font-size:32px">—</div>
+          <div id="an-today-trend" style="font-size:12px;margin-top:4px"></div>
+        </div>
+        <div class="stat-card" style="border-radius:12px;padding:20px">
+          <div class="stat-label" style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">This Week</div>
+          <div class="stat-value" id="an-week-views" style="font-size:32px">—</div>
+          <div id="an-week-trend" style="font-size:12px;margin-top:4px"></div>
+        </div>
+        <div class="stat-card" style="border-radius:12px;padding:20px">
+          <div class="stat-label" style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Total Views</div>
+          <div class="stat-value" id="an-total-views" style="font-size:32px">—</div>
+        </div>
+        <div class="stat-card" style="border-radius:12px;padding:20px">
+          <div class="stat-label" style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Sessions Today</div>
+          <div class="stat-value" id="an-sessions-today" style="font-size:32px">—</div>
+          <div id="an-sessions-today-trend" style="font-size:12px;margin-top:4px"></div>
+        </div>
+        <div class="stat-card" style="border-radius:12px;padding:20px">
+          <div class="stat-label" style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Sessions This Week</div>
+          <div class="stat-value" id="an-sessions-week" style="font-size:32px">—</div>
+          <div id="an-sessions-week-trend" style="font-size:12px;margin-top:4px"></div>
+        </div>
+      </div>
+
+      <!-- Traffic chart -->
+      <div class="section" style="margin-bottom:20px">
+        <div class="section-title" style="margin-bottom:16px">Daily Traffic — Last 30 Days</div>
+        <canvas id="an-traffic-chart" height="90"></canvas>
+      </div>
+
+      <!-- Section + Distribution row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <div class="section">
+          <div class="section-title" style="margin-bottom:16px">Section Engagement</div>
+          <canvas id="an-section-chart" height="160"></canvas>
+        </div>
+        <div class="section">
+          <div class="section-title" style="margin-bottom:16px">Traffic Distribution</div>
+          <canvas id="an-dist-chart" height="160"></canvas>
+        </div>
+      </div>
+
+      <!-- Device + Browser row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <div class="section">
+          <div class="section-title" style="margin-bottom:16px">Device Types</div>
+          <canvas id="an-device-chart" height="160"></canvas>
+        </div>
+        <div class="section">
+          <div class="section-title" style="margin-bottom:16px">Browsers</div>
+          <canvas id="an-browser-chart" height="160"></canvas>
+        </div>
+      </div>
+
+      <!-- FAQ engagement -->
+      <div class="section" style="margin-bottom:20px">
+        <div class="section-title" style="margin-bottom:16px">FAQ Engagement</div>
+        <div id="an-faq-container"><div class="empty">Loading…</div></div>
+      </div>
+
+      <!-- Daily breakdown table -->
+      <div class="section">
+        <div class="section-title" style="margin-bottom:16px">Daily Breakdown</div>
+        <table class="tbl">
+          <thead><tr><th>Date</th><th>Page Views</th><th>Unique Sessions</th></tr></thead>
+          <tbody id="an-daily-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /tab-analytics -->
 
   </div>
 </div>
@@ -270,27 +625,17 @@
   <div class="modal">
     <h3 id="modal-title">Add User</h3>
     <input type="hidden" id="modal-user-id" />
-
     <label>Full Name</label>
     <input type="text" id="modal-name" placeholder="e.g. Jane Smith" />
-
     <label>Email Address</label>
     <input type="email" id="modal-email" placeholder="jane@company.com.au" />
-
-    <label>Temporary Password</label>
-    <input type="text" id="modal-pw" placeholder="Leave blank to keep existing" />
-
+    <label>Password <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(leave blank when editing to keep existing)</span></label>
+    <input type="text" id="modal-pw" placeholder="Temporary password for new users" />
     <label>Role</label>
-    <select id="modal-role">
-      <option value="user">User</option>
-      <option value="admin">Admin</option>
-    </select>
-
+    <select id="modal-role"><option value="user">User</option><option value="admin">Admin</option></select>
     <label>Max PPTX Exports / Month (blank = unlimited)</label>
     <input type="number" id="modal-max" placeholder="50" min="0" />
-
     <div style="margin-top:20px;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px">Permissions</div>
-
     <div class="perm-row">
       <div><div class="perm-label">Fuel Pricing</div><div class="perm-sub">Can see live fuel prices</div></div>
       <button class="tog" id="perm-fuel" onclick="this.classList.toggle('on')"></button>
@@ -303,11 +648,82 @@
       <div><div class="perm-label">Export CSV</div><div class="perm-sub">Can export stop data as CSV</div></div>
       <button class="tog on" id="perm-csv" onclick="this.classList.toggle('on')"></button>
     </div>
-
     <div id="modal-error" style="color:#f87171;font-size:13px;margin-top:12px;display:none"></div>
     <div class="modal-btns">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-green" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEAD DETAIL MODAL -->
+<div class="modal-overlay" id="lead-modal">
+  <div class="modal" style="width:580px;max-width:100%">
+    <h3>Lead Details</h3>
+    <input type="hidden" id="lead-modal-id" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px">
+      <div class="lead-modal-field"><label>Name</label><div id="lead-detail-name" style="font-size:14px"></div></div>
+      <div class="lead-modal-field"><label>Business</label><div id="lead-detail-business" style="font-size:14px"></div></div>
+      <div class="lead-modal-field"><label>Phone</label><div id="lead-detail-phone" style="font-size:14px"></div></div>
+      <div class="lead-modal-field"><label>Email</label><div id="lead-detail-email" style="font-size:14px"></div></div>
+      <div class="lead-modal-field"><label>Fleet Size</label><div id="lead-detail-fleet" style="font-size:14px"></div></div>
+      <div class="lead-modal-field"><label>Submitted</label><div id="lead-detail-date" style="font-size:14px"></div></div>
+    </div>
+    <div id="lead-detail-routes-row" class="lead-modal-field" style="display:none"><label>Routes</label><div id="lead-detail-routes" style="font-size:14px"></div></div>
+    <div id="lead-detail-message-row" class="lead-modal-field" style="display:none"><label>Message</label><div id="lead-detail-message" style="font-size:14px;color:var(--muted)"></div></div>
+    <label>Status</label>
+    <select id="lead-modal-status" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;color:white !important;font-size:14px;margin-bottom:0">
+      <option value="new">New</option>
+      <option value="contacted">Contacted</option>
+      <option value="qualified">Qualified</option>
+      <option value="converted">Converted</option>
+      <option value="closed">Closed</option>
+    </select>
+    <label>Internal Notes</label>
+    <textarea id="lead-modal-notes" rows="3" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px 12px;color:white !important;font-size:14px;resize:vertical"></textarea>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeLeadModal()">Close</button>
+      <button class="btn btn-blue" onclick="saveLeadUpdate()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- BLOG POST MODAL -->
+<div class="modal-overlay blog-modal" id="blog-modal">
+  <div class="modal" style="width:660px;max-width:100%">
+    <h3 id="blog-modal-heading">New Post</h3>
+    <input type="hidden" id="blog-modal-id" />
+    <label>Title</label>
+    <input type="text" id="blog-modal-title" placeholder="e.g. How to Save on Fuel Costs in 2025" oninput="autoSlug()" />
+    <label>Slug <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(auto-generated URL identifier)</span></label>
+    <input type="text" id="blog-modal-slug" placeholder="how-to-save-on-fuel-costs-in-2025" />
+    <label>Category</label>
+    <select id="blog-modal-category">
+      <option value="Industry News">Industry News</option>
+      <option value="Fuel Savings">Fuel Savings</option>
+      <option value="Fleet Management">Fleet Management</option>
+      <option value="Compliance">Compliance</option>
+      <option value="Company News">Company News</option>
+    </select>
+    <label>Excerpt <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(short preview shown in listing)</span></label>
+    <textarea id="blog-modal-excerpt" rows="2" placeholder="A short summary shown in the blog listing…"></textarea>
+    <label>Content <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(plain text or basic HTML)</span></label>
+    <textarea id="blog-modal-content" rows="8" placeholder="Write your post content here…" style="font-family:'DM Mono',monospace !important"></textarea>
+    <label>Read Time <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">(e.g. 5 min read)</span></label>
+    <input type="text" id="blog-modal-readtime" placeholder="5 min read" />
+    <label>Status</label>
+    <select id="blog-modal-status">
+      <option value="draft">Draft</option>
+      <option value="published">Published</option>
+    </select>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:16px">
+      <button class="tog" id="blog-modal-featured" onclick="this.classList.toggle('on')"></button>
+      <span style="font-size:13px;color:var(--muted)">Featured post (shown at top of blog)</span>
+    </div>
+    <div id="blog-modal-error" style="color:#f87171;font-size:13px;margin-top:12px;display:none"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeBlogModal()">Cancel</button>
+      <button class="btn btn-green" onclick="saveBlogPost()">Save Post</button>
     </div>
   </div>
 </div>
@@ -318,13 +734,22 @@
 const SUPABASE_URL  = 'https://feibvcvjgknrwtejoywd.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlaWJ2Y3ZqZ2tucnd0ZWpveXdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3Njk5MzksImV4cCI6MjA4ODM0NTkzOX0.RMjFrw8mMPr-KcYafGZPDp-UoZiAlHGnGOZj4wwHWOk';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storage: window.localStorage
-  }
+  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storage:window.localStorage }
 });
+
+// ── TABS ──
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'logs')     loadLogs();
+  if (name === 'settings') loadSettings();
+  if (name === 'tgp')      { loadTGPStats(); loadTGPHistory(); renderTGPCharts(); }
+  if (name === 'leads')     loadLeads();
+  if (name === 'blog')      loadBlogPosts();
+  if (name === 'analytics') loadAnalytics();
+}
 
 // ── AUTH ──
 async function doLogin() {
@@ -334,7 +759,6 @@ async function doLogin() {
   err.style.display = 'none';
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
   if (error) { err.textContent = error.message; err.style.display = 'block'; return; }
-  // Check admin
   const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).single();
   if (!profile || profile.role !== 'admin') {
     await sb.auth.signOut();
@@ -355,83 +779,78 @@ function showApp(email) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   document.getElementById('topbar-email').textContent = email;
+  loadBrandingOnStart();
   loadUsers();
-  loadLogs();
   loadStats();
 }
 
 // ── STATS ──
 async function loadStats() {
   const { data: all } = await sb.from('profiles').select('is_active');
-  const total     = all ? all.length : 0;
-  const active    = all ? all.filter(u => u.is_active).length : 0;
-  const suspended = total - active;
+  const total  = all ? all.length : 0;
+  const active = all ? all.filter(u => u.is_active).length : 0;
   document.getElementById('stat-total').textContent     = total;
   document.getElementById('stat-active').textContent    = active;
-  document.getElementById('stat-suspended').textContent = suspended;
-
+  document.getElementById('stat-suspended').textContent = total - active;
   const today = new Date().toISOString().split('T')[0];
-  const { count } = await sb.from('usage_logs').select('*', {count:'exact',head:true})
-    .eq('action','pptx_export').gte('created_at', today + 'T00:00:00');
-  document.getElementById('stat-exports').textContent = count || 0;
+  const { count: exp } = await sb.from('usage_logs').select('*',{count:'exact',head:true}).eq('action','pptx_export').gte('created_at',today+'T00:00:00');
+  document.getElementById('stat-exports').textContent = exp || 0;
+  const { count: log } = await sb.from('usage_logs').select('*',{count:'exact',head:true}).eq('action','login').gte('created_at',today+'T00:00:00');
+  document.getElementById('stat-logins').textContent  = log || 0;
 }
 
 // ── USERS ──
+let _allUsers = [];
 async function loadUsers() {
-  const { data, error } = await sb.from('profiles').select('*').order('created_at', {ascending:false});
+  const { data, error } = await sb.from('profiles').select('*').order('created_at',{ascending:false});
   const tbody = document.getElementById('users-tbody');
   if (error || !data) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Error loading users</td></tr>'; return; }
   if (!data.length)   { tbody.innerHTML = '<tr><td colspan="7" class="empty">No users yet</td></tr>'; return; }
-
   tbody.innerHTML = data.map(u => `
     <tr>
-      <td>
-        <div style="font-weight:500">${u.full_name || '—'}</div>
-        <div class="mono">${u.email}</div>
-      </td>
+      <td><div style="font-weight:500">${u.full_name||'—'}</div><div class="mono">${u.email}</div></td>
       <td><span class="badge badge-${u.role}">${u.role}</span></td>
+      <td><button class="tog ${u.is_active?'on':''}" onclick="toggleActive('${u.id}',${u.is_active})"></button></td>
+      <td><span style="font-family:'DM Mono',monospace;font-size:13px">${u.export_count||0}</span><span style="color:var(--muted);font-size:11px"> / ${u.max_exports||'∞'}</span></td>
+      <td class="mono">${u.last_login ? new Date(u.last_login).toLocaleString('en-AU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Never'}</td>
       <td>
-        <button class="tog ${u.is_active ? 'on' : ''}" onclick="toggleActive('${u.id}', ${u.is_active})"></button>
-      </td>
-      <td>
-        <span style="font-family:'DM Mono',monospace;font-size:13px">${u.export_count}</span>
-        ${u.max_exports ? `<span style="color:var(--muted);font-size:11px"> / ${u.max_exports}</span>` : '<span style="color:var(--muted);font-size:11px"> / ∞</span>'}
-      </td>
-      <td class="mono">${u.last_login ? new Date(u.last_login).toLocaleString('en-AU', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Never'}</td>
-      <td>
-        <span style="font-size:11px;color:${u.can_export_pptx ? 'var(--green)' : 'var(--muted)'}">PPTX</span>
-        <span style="font-size:11px;color:${u.can_export_csv  ? 'var(--green)' : 'var(--muted)'}"> CSV</span>
-        <span style="font-size:11px;color:${u.can_fuel_pricing? 'var(--green)' : 'var(--muted)'}"> Fuel</span>
+        <span style="font-size:11px;color:${u.can_export_pptx?'var(--green)':'var(--muted)'}">PPTX</span>
+        <span style="font-size:11px;color:${u.can_export_csv?'var(--green)':'var(--muted)'}"> CSV</span>
+        <span style="font-size:11px;color:${u.can_fuel_pricing?'var(--green)':'var(--muted)'}"> Fuel</span>
       </td>
       <td>
         <button class="btn btn-ghost" style="margin-right:4px" onclick="openEditUser(${JSON.stringify(u).replace(/"/g,'&quot;')})">Edit</button>
         <button class="btn btn-red" onclick="resetExports('${u.id}')">Reset</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`).join('');
+  _allUsers = data;
+  ['cred-user-select','log-filter-user'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    sel.innerHTML = id === 'cred-user-select' ? '<option value="">— Choose a user —</option>' : '<option value="">All Users</option>';
+    data.forEach(u => { sel.innerHTML += `<option value="${u.id}" data-email="${u.email}">${u.full_name||u.email}</option>`; });
+    if (cur) sel.value = cur;
+  });
 }
 
 async function toggleActive(id, current) {
-  await sb.from('profiles').update({ is_active: !current }).eq('id', id);
+  await sb.from('profiles').update({is_active:!current}).eq('id',id);
   loadUsers(); loadStats();
   toast(!current ? 'User activated' : 'User suspended');
 }
 
 async function resetExports(id) {
   if (!confirm('Reset export count to 0?')) return;
-  await sb.from('profiles').update({ export_count: 0 }).eq('id', id);
+  await sb.from('profiles').update({export_count:0}).eq('id',id);
   loadUsers(); toast('Export count reset');
 }
 
-// ── MODAL ──
+// ── USER MODAL ──
 function openAddUser() {
   document.getElementById('modal-title').textContent = 'Add User';
-  document.getElementById('modal-user-id').value = '';
-  document.getElementById('modal-name').value = '';
-  document.getElementById('modal-email').value = '';
-  document.getElementById('modal-pw').value = '';
+  ['modal-user-id','modal-name','modal-email','modal-pw'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('modal-role').value = 'user';
-  document.getElementById('modal-max').value = '50';
+  document.getElementById('modal-max').value  = '50';
   document.getElementById('perm-fuel').className = 'tog';
   document.getElementById('perm-pptx').className = 'tog on';
   document.getElementById('perm-csv').className  = 'tog on';
@@ -442,11 +861,11 @@ function openAddUser() {
 function openEditUser(u) {
   document.getElementById('modal-title').textContent = 'Edit User';
   document.getElementById('modal-user-id').value = u.id;
-  document.getElementById('modal-name').value  = u.full_name || '';
-  document.getElementById('modal-email').value = u.email;
-  document.getElementById('modal-pw').value    = '';
-  document.getElementById('modal-role').value  = u.role;
-  document.getElementById('modal-max').value   = u.max_exports || '';
+  document.getElementById('modal-name').value    = u.full_name || '';
+  document.getElementById('modal-email').value   = u.email;
+  document.getElementById('modal-pw').value      = '';
+  document.getElementById('modal-role').value    = u.role;
+  document.getElementById('modal-max').value     = u.max_exports || '';
   document.getElementById('perm-fuel').className = 'tog' + (u.can_fuel_pricing ? ' on' : '');
   document.getElementById('perm-pptx').className = 'tog' + (u.can_export_pptx  ? ' on' : '');
   document.getElementById('perm-csv').className  = 'tog' + (u.can_export_csv   ? ' on' : '');
@@ -465,87 +884,715 @@ async function saveUser() {
   const maxEx = document.getElementById('modal-max').value;
   const errEl = document.getElementById('modal-error');
   errEl.style.display = 'none';
-
   const profile = {
-    full_name:        name,
-    role:             role,
-    max_exports:      maxEx ? parseInt(maxEx) : null,
+    full_name:name, role, max_exports:maxEx?parseInt(maxEx):null,
     can_fuel_pricing: document.getElementById('perm-fuel').classList.contains('on'),
     can_export_pptx:  document.getElementById('perm-pptx').classList.contains('on'),
     can_export_csv:   document.getElementById('perm-csv').classList.contains('on'),
   };
-
   if (uid) {
-    // UPDATE existing
-    const { error } = await sb.from('profiles').update({ ...profile, email }).eq('id', uid);
+    const { error } = await sb.from('profiles').update({...profile,email}).eq('id',uid);
     if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
-    toast('User updated');
+    toast('User updated ✓');
+    closeModal(); loadUsers(); loadStats();
   } else {
-    // CREATE new via Admin API (needs service role) — use edge function instead
-    if (!email || !pw) { errEl.textContent = 'Email and password required for new users.'; errEl.style.display = 'block'; return; }
+    if (!email || !pw) { errEl.textContent = 'Email and password required.'; errEl.style.display = 'block'; return; }
     let { data: { session } } = await sb.auth.getSession();
-    // If session missing, try refreshing it once
-    if (!session) {
-      const { data: refreshData } = await sb.auth.refreshSession();
-      session = refreshData?.session;
-    }
-    if (!session) {
-      errEl.textContent = 'Session expired — please sign out and sign back in, then try again.';
-      errEl.style.display = 'block';
-      return;
-    }
+    if (!session) { const { data:r } = await sb.auth.refreshSession(); session = r?.session; }
+    if (!session) { errEl.textContent = 'Session expired — please sign out and back in.'; errEl.style.display = 'block'; return; }
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': SUPABASE_ANON
-      },
-      body: JSON.stringify({
-        email, password: pw, full_name: name, role,
-        max_exports: maxEx ? parseInt(maxEx) : 50,
-        can_fuel_pricing: document.getElementById('perm-fuel').classList.contains('on'),
-        can_export_pptx:  document.getElementById('perm-pptx').classList.contains('on'),
-        can_export_csv:   document.getElementById('perm-csv').classList.contains('on'),
-      })
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,'apikey':SUPABASE_ANON},
+      body:JSON.stringify({email,password:pw,full_name:name,role,max_exports:maxEx?parseInt(maxEx):50,...profile})
     });
     const result = await resp.json();
     if (result.error) { errEl.textContent = result.error; errEl.style.display = 'block'; return; }
-    toast('User created — they can now log in');
+    toast('User created — they can now log in ✓');
+    closeModal(); loadUsers(); loadStats();
   }
-
-  closeModal();
-  loadUsers(); loadStats();
 }
 
-// ── LOGS ──
+// ── ACTIVITY LOG ──
 async function loadLogs() {
-  const { data } = await sb.from('usage_logs').select('*').order('created_at', {ascending:false}).limit(100);
   const tbody = document.getElementById('logs-tbody');
-  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">No activity yet</td></tr>'; return; }
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  const userFilter   = document.getElementById('log-filter-user').value;
+  const actionFilter = document.getElementById('log-filter-action').value;
+  const dateFilter   = document.getElementById('log-filter-date').value;
+  let query = sb.from('usage_logs').select('*').order('created_at',{ascending:false}).limit(250);
+  if (userFilter)   query = query.eq('user_id', userFilter);
+  if (actionFilter) query = query.eq('action', actionFilter);
+  if (dateFilter)   query = query.gte('created_at',dateFilter+'T00:00:00').lte('created_at',dateFilter+'T23:59:59');
+  const { data, error } = await query;
+  if (error || !data) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Error loading logs</td></tr>'; return; }
+  if (!data.length)   { tbody.innerHTML = '<tr><td colspan="5" class="empty">No activity found for selected filters</td></tr>'; return; }
+  const ac = {login:'log-login',pptx_export:'log-pptx',csv_export:'log-csv',route_planned:'log-route',signout:'log-signout'};
+  tbody.innerHTML = data.map(l => {
+    const m = l.metadata || {};
+    return `<tr>
+      <td class="mono">${new Date(l.created_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td><div style="font-size:13px;font-weight:500">${m.full_name||'—'}</div><div class="mono">${l.email||'—'}</div></td>
+      <td><span class="log-action ${ac[l.action]||''}">${l.action}</span></td>
+      <td style="font-size:12px;color:var(--muted);max-width:240px">${l.detail||'—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${m.browser||m.device||'—'}</td>
+    </tr>`;
+  }).join('');
+}
 
-  const actionColour = { login:'log-login', pptx_export:'log-pptx', route_planned:'log-route', csv_export:'log-login' };
+function clearLogFilters() {
+  document.getElementById('log-filter-user').value   = '';
+  document.getElementById('log-filter-action').value = '';
+  document.getElementById('log-filter-date').value   = '';
+  loadLogs();
+}
+
+// ── SETTINGS: BRANDING ──
+async function loadSettings() {
+  const { data } = await sb.from('dashboard_settings').select('*').eq('id','global').single();
+  if (!data) return;
+  const setCol = (id, cssVar, val) => {
+    if (!val) return;
+    const el = document.getElementById(id); if (el) el.value = val;
+    const hex = document.getElementById(id+'-hex'); if (hex) hex.textContent = val;
+    document.documentElement.style.setProperty(cssVar, val);
+  };
+  setCol('colour-primary',      '--primary',           data.primary_colour);
+  setCol('colour-accent',       '--accent',            data.accent_colour);
+  setCol('colour-bg',           '--bg',                data.bg_colour);
+  setCol('colour-bg2',          '--bg2',               data.bg2_colour);
+  setCol('colour-font',         '--font-colour',       data.font_colour);
+  setCol('colour-heading',      '--heading-colour',    data.heading_colour);
+  setCol('colour-subheading',   '--subheading-colour', data.subheading_colour);
+  setCol('colour-menu',         '--menu-colour',       data.menu_colour);
+  setCol('colour-menu-active',  '--menu-active-colour',data.menu_active_colour);
+  if (data.font_family) { const sel = document.getElementById('font-family-select'); if(sel) sel.value = data.font_family; syncFont(data.font_family); }
+  if (data.logo_url) {
+    const prev = document.getElementById('logo-preview');
+    prev.src = data.logo_url; prev.style.display = 'block';
+    document.getElementById('logo-status').textContent = 'Current logo loaded';
+  }
+  populateCredDropdown();
+}
+
+async function loadBrandingOnStart() {
+  const { data } = await sb.from('dashboard_settings').select('*').eq('id','global').single();
+  if (!data) return;
+  const av = (cssVar, val) => { if (val) document.documentElement.style.setProperty(cssVar, val); };
+  av('--primary',            data.primary_colour);
+  av('--accent',             data.accent_colour);
+  av('--bg',                 data.bg_colour);
+  av('--bg2',                data.bg2_colour);
+  av('--font-colour',        data.font_colour);
+  av('--heading-colour',     data.heading_colour);
+  av('--subheading-colour',  data.subheading_colour);
+  av('--menu-colour',        data.menu_colour);
+  av('--menu-active-colour', data.menu_active_colour);
+  if (data.font_family) syncFont(data.font_family, false);
+  if (data.logo_url) {
+    ['topbar-logo-img','login-logo-img'].forEach(id => { const el=document.getElementById(id); el.src=data.logo_url; el.style.display='block'; });
+    document.getElementById('topbar-logo-text').style.display = 'none';
+    document.getElementById('login-logo-text').style.display  = 'none';
+  }
+}
+
+function syncColour(which, val) {
+  const hexEl = document.getElementById('colour-'+which+'-hex');
+  if (hexEl) hexEl.textContent = val;
+  document.documentElement.style.setProperty('--'+which, val);
+}
+
+function syncFont(family, updatePreview=true) {
+  document.documentElement.style.setProperty('--font-family', `'${family}',sans-serif`);
+}
+
+async function handleLogoUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('logo-status').textContent = 'Uploading…';
+  const ext  = file.name.split('.').pop();
+  const path = `logos/dashboard-logo.${ext}`;
+  const { error } = await sb.storage.from('dashboard-assets').upload(path, file, {upsert:true, contentType:file.type});
+  if (error) { toast('Upload failed: ' + error.message, true); document.getElementById('logo-status').textContent = ''; return; }
+  const { data: urlData } = sb.storage.from('dashboard-assets').getPublicUrl(path);
+  const url = urlData.publicUrl;
+  const prev = document.getElementById('logo-preview');
+  prev.src = url + '?t=' + Date.now(); prev.style.display = 'block';
+  prev.dataset.cleanUrl = url;
+  document.getElementById('logo-status').textContent = 'Uploaded — click Save Branding to apply';
+  toast('Logo uploaded ✓');
+}
+
+async function saveBranding() {
+  const g = id => document.getElementById(id)?.value;
+  const prev    = document.getElementById('logo-preview');
+  const logoUrl = prev.style.display !== 'none' ? (prev.dataset.cleanUrl || prev.src.split('?')[0]) : null;
+  const update  = {
+    primary_colour:     g('colour-primary'),
+    accent_colour:      g('colour-accent'),
+    bg_colour:          g('colour-bg'),
+    bg2_colour:         g('colour-bg2'),
+    font_colour:        g('colour-font'),
+    font_family:        g('font-family-select'),
+    heading_colour:     g('colour-heading'),
+    subheading_colour:  g('colour-subheading'),
+    menu_colour:        g('colour-menu'),
+    menu_active_colour: g('colour-menu-active'),
+    updated_at: new Date().toISOString()
+  };
+  if (logoUrl) update.logo_url = logoUrl;
+  const { error } = await sb.from('dashboard_settings').update(update).eq('id','global');
+  if (error) { toast('Save failed: '+error.message, true); return; }
+  loadBrandingOnStart();
+  toast('Branding saved ✓');
+}
+
+// ── CREDENTIALS ──
+async function populateCredDropdown() {
+  if (!_allUsers.length) {
+    const { data } = await sb.from('profiles').select('id,email,full_name').order('full_name');
+    if (data) _allUsers = data;
+  }
+  const sel = document.getElementById('cred-user-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Choose a user —</option>';
+  _allUsers.forEach(u => { sel.innerHTML += `<option value="${u.id}" data-email="${u.email}">${u.full_name||u.email} (${u.email})</option>`; });
+  if (cur) sel.value = cur;
+}
+
+function loadCredFields() {
+  const sel = document.getElementById('cred-user-select');
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById('cred-email').value    = opt.dataset.email || '';
+  document.getElementById('cred-password').value = '';
+  document.getElementById('cred-error').style.display = 'none';
+}
+
+async function saveCredentials() {
+  const userId   = document.getElementById('cred-user-select').value;
+  const newEmail = document.getElementById('cred-email').value.trim();
+  const newPw    = document.getElementById('cred-password').value;
+  const errEl    = document.getElementById('cred-error');
+  errEl.style.display = 'none';
+  if (!userId)             { errEl.textContent = 'Please select a user.';                    errEl.style.display='block'; return; }
+  if (!newEmail && !newPw) { errEl.textContent = 'Enter a new email or password to update.'; errEl.style.display='block'; return; }
+  let { data: { session } } = await sb.auth.getSession();
+  if (!session) { const {data:r} = await sb.auth.refreshSession(); session = r?.session; }
+  if (!session) { errEl.textContent = 'Session expired — sign out and back in.'; errEl.style.display='block'; return; }
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/update-user-credentials`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${session.access_token}`,'apikey':SUPABASE_ANON},
+    body:JSON.stringify({user_id:userId, email:newEmail||undefined, password:newPw||undefined})
+  });
+  const result = await resp.json();
+  if (result.error) { errEl.textContent = result.error; errEl.style.display='block'; return; }
+  if (newEmail) await sb.from('profiles').update({email:newEmail}).eq('id',userId);
+  toast('Credentials updated ✓');
+  loadUsers();
+}
+
+// ── TGP PRICING ──
+let _tgpParsedRows = [];
+let _tgpChart = null;
+
+async function fetchAIPNow() {
+  const btn = document.getElementById('aip-fetch-btn');
+  btn.textContent = '⏳ Fetching…'; btn.disabled = true;
+  document.getElementById('tgp-file-status').textContent = 'Contacting AIP.com.au…';
+  let { data: { session } } = await sb.auth.getSession();
+  if (!session) { const {data:r} = await sb.auth.refreshSession(); session = r?.session; }
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/fetch-aip-tgp`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${session.access_token}`, 'apikey':SUPABASE_ANON }
+    });
+    const result = await resp.json();
+    if (result.error) {
+      toast('Fetch failed: ' + result.error, true);
+      document.getElementById('tgp-file-status').textContent = 'Fetch failed: ' + result.error;
+    } else if (result.message?.includes('already imported')) {
+      toast('Already up to date — no new dates to import');
+      document.getElementById('tgp-file-status').textContent = result.message;
+    } else {
+      toast('✓ ' + result.message);
+      document.getElementById('tgp-file-status').textContent = result.message;
+      loadTGPStats(); loadTGPHistory(); renderTGPCharts();
+    }
+  } catch(e) {
+    toast('Network error: ' + e.message, true);
+    document.getElementById('tgp-file-status').textContent = '';
+  }
+  btn.textContent = '⬇ Fetch Now from AIP'; btn.disabled = false;
+}
+
+function handleTGPFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('tgp-file-status').textContent = `Selected: ${file.name} — parsing…`;
+  document.getElementById('tgp-upload-btn').style.display = 'none';
+  document.getElementById('tgp-preview-table').style.display = 'none';
+  _tgpParsedRows = [];
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb   = XLSX.read(data, { type: 'array', cellDates: true });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { document.getElementById('tgp-file-status').textContent = 'File appears empty.'; return; }
+      const headers    = Object.keys(rows[0]);
+      const findCol    = (...terms) => headers.find(h => terms.some(t => h.toLowerCase().includes(t))) || '';
+      const productCol = findCol('product','fuel','grade','type','description','name');
+      const priceCol   = findCol('price','cost','rate','amount','value','cpp','cpl');
+      const regionCol  = findCol('region','state','location','area','zone','site');
+      const unitCol    = findCol('unit','uom','measure');
+      _tgpParsedRows = rows.map(r => ({
+        product:    String(r[productCol] || 'Unknown').trim(),
+        price:      parseFloat(String(r[priceCol] || '0').replace(/[^0-9.-]/g,'')) || 0,
+        region:     String(r[regionCol] || '').trim() || null,
+        unit:       String(r[unitCol]   || 'cpl').trim() || 'cpl',
+        extra_data: r,
+      })).filter(r => r.price > 0);
+      const preview = document.getElementById('tgp-preview-table');
+      preview.style.display = 'block';
+      preview.innerHTML = `<table class="tbl" style="font-size:11px">
+        <thead><tr><th>Product</th><th>Price</th><th>Region</th><th>Unit</th></tr></thead>
+        <tbody>${_tgpParsedRows.slice(0,10).map(r =>
+          `<tr><td>${r.product}</td><td>${r.price}</td><td>${r.region||'—'}</td><td>${r.unit}</td></tr>`
+        ).join('')}${_tgpParsedRows.length > 10 ? `<tr><td colspan="4" style="color:var(--muted);text-align:center">…and ${_tgpParsedRows.length-10} more rows</td></tr>` : ''}</tbody>
+      </table>`;
+      document.getElementById('tgp-file-status').textContent = `✓ Parsed ${_tgpParsedRows.length} rows — review above then click Upload`;
+      document.getElementById('tgp-upload-btn').style.display = 'inline-block';
+    } catch(err) {
+      document.getElementById('tgp-file-status').textContent = 'Error parsing file: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function uploadTGPData() {
+  if (!_tgpParsedRows.length) { toast('No data to upload', true); return; }
+  const btn = document.getElementById('tgp-upload-btn');
+  btn.textContent = 'Uploading…'; btn.disabled = true;
+  const today = new Date().toISOString().split('T')[0];
+  const file  = document.getElementById('tgp-file-input').files[0];
+  const { data: { user } } = await sb.auth.getUser();
+  const { data: upload, error: upErr } = await sb.from('tgp_pricing')
+    .insert({ upload_date: today, uploaded_by: user?.id, filename: file?.name || 'unknown', source: 'manual' })
+    .select().single();
+  if (upErr) { toast('Upload failed: ' + upErr.message, true); btn.textContent = '⬆ Upload'; btn.disabled = false; return; }
+  const rows = _tgpParsedRows.map(r => ({ ...r, upload_id: upload.id, upload_date: today }));
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await sb.from('tgp_pricing_rows').insert(rows.slice(i, i+200));
+    if (error) { toast('Row insert error: ' + error.message, true); btn.textContent = '⬆ Upload'; btn.disabled = false; return; }
+  }
+  toast(`✓ Uploaded ${rows.length} rows for ${today}`);
+  btn.textContent = '⬆ Upload'; btn.disabled = false;
+  document.getElementById('tgp-file-input').value = '';
+  document.getElementById('tgp-preview-table').style.display = 'none';
+  document.getElementById('tgp-file-status').textContent = '';
+  document.getElementById('tgp-upload-btn').style.display = 'none';
+  _tgpParsedRows = [];
+  loadTGPStats(); loadTGPHistory(); renderTGPCharts();
+}
+
+async function loadTGPStats() {
+  const { data: uploads } = await sb.from('tgp_pricing').select('upload_date').order('upload_date',{ascending:false}).limit(1);
+  if (uploads?.length) {
+    document.getElementById('tgp-stat-latest').textContent = new Date(uploads[0].upload_date).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  const { count } = await sb.from('tgp_pricing').select('*',{count:'exact',head:true});
+  document.getElementById('tgp-stat-count').textContent = count || 0;
+  const { data: latest } = await sb.from('tgp_pricing_rows').select('product,price,region,unit,upload_date').order('upload_date',{ascending:false}).limit(50);
+  const tbody = document.getElementById('tgp-latest-tbody');
+  if (!latest?.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty">No data yet</td></tr>'; return; }
+  const seen = new Set();
+  const filtered = latest.filter(r => { const k = r.product+r.region; if(seen.has(k))return false; seen.add(k); return true; });
+  tbody.innerHTML = filtered.slice(0,12).map(r =>
+    `<tr><td style="font-weight:500">${r.product}</td><td style="color:var(--green);font-family:'DM Mono',monospace">${r.price} ${r.unit}</td><td style="color:var(--muted)">${r.region||'—'}</td></tr>`
+  ).join('');
+  const products = [...new Set(latest.map(r => r.product))].sort();
+  const sel = document.getElementById('tgp-chart-product');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Products</option>' + products.map(p => `<option value="${p}">${p}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+async function renderTGPCharts() {
+  const days    = parseInt(document.getElementById('tgp-chart-range').value) || 30;
+  const product = document.getElementById('tgp-chart-product').value;
+  const since   = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+  let query = sb.from('tgp_pricing_rows').select('upload_date,product,price,unit').gte('upload_date', since).order('upload_date');
+  if (product) query = query.eq('product', product);
+  const { data } = await query.limit(2000);
+  if (!data?.length) return;
+  const grouped = {};
+  data.forEach(r => {
+    if (!grouped[r.product]) grouped[r.product] = {};
+    if (!grouped[r.product][r.upload_date]) grouped[r.product][r.upload_date] = [];
+    grouped[r.product][r.upload_date].push(r.price);
+  });
+  const allDates = [...new Set(data.map(r => r.upload_date))].sort();
+  const palette  = ['#2899D5','#FBCE07','#16A34A','#E87722','#D71D28','#8B5CF6','#06B6D4','#F472B6'];
+  const products = Object.keys(grouped).slice(0,8);
+  const datasets = products.map((p,i) => ({
+    label: p,
+    data: allDates.map(d => grouped[p][d] ? +(grouped[p][d].reduce((a,b)=>a+b,0)/grouped[p][d].length).toFixed(4) : null),
+    borderColor: palette[i % palette.length],
+    backgroundColor: palette[i % palette.length] + '22',
+    tension: 0.3, spanGaps: true,
+    pointRadius: allDates.length > 60 ? 0 : 3,
+  }));
+  const ctx = document.getElementById('tgp-line-chart').getContext('2d');
+  if (_tgpChart) _tgpChart.destroy();
+  _tgpChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: allDates.map(d => new Date(d).toLocaleDateString('en-AU',{day:'2-digit',month:'short'})), datasets },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { labels: { color:'#FFFFFF', font:{ size:11 } } },
+        tooltip: { mode:'index', intersect:false }
+      },
+      scales: {
+        x: { ticks:{ color:'#6B7A8D', maxTicksLimit:12 }, grid:{ color:'rgba(255,255,255,0.04)' } },
+        y: { ticks:{ color:'#6B7A8D' }, grid:{ color:'rgba(255,255,255,0.06)' }, title:{ display:true, text:'Price (cpl)', color:'#6B7A8D' } }
+      }
+    }
+  });
+}
+
+async function loadTGPHistory() {
+  const tbody = document.getElementById('tgp-history-tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty">Loading…</td></tr>';
+  const from = document.getElementById('tgp-hist-from').value;
+  const to   = document.getElementById('tgp-hist-to').value;
+  let query = sb.from('tgp_pricing').select('*').order('upload_date',{ascending:false}).limit(100);
+  if (from) query = query.gte('upload_date', from);
+  if (to)   query = query.lte('upload_date', to);
+  const { data: uploads } = await query;
+  if (!uploads?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No uploads found</td></tr>'; return; }
+  const ids = uploads.map(u => u.id);
+  const { data: counts } = await sb.from('tgp_pricing_rows').select('upload_id,product,region').in('upload_id', ids);
+  tbody.innerHTML = uploads.map(u => {
+    const rows     = counts?.filter(r => r.upload_id === u.id) || [];
+    const products = [...new Set(rows.map(r => r.product))].length;
+    const regions  = [...new Set(rows.map(r => r.region).filter(Boolean))].length;
+    const isAuto   = u.source === 'aip_auto';
+    const srcBadge = isAuto
+      ? `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(40,153,213,0.15);color:var(--primary);font-weight:600">🤖 AUTO</span>`
+      : `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(22,163,74,0.12);color:#4ade80;font-weight:600">👤 MANUAL</span>`;
+    return `<tr>
+      <td style="font-weight:500">${new Date(u.upload_date).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td>${srcBadge}</td>
+      <td class="mono">${u.filename||'—'}</td>
+      <td>${rows.length}</td>
+      <td>${products}</td>
+      <td>${regions||'—'}</td>
+      <td><button class="btn btn-red" onclick="deleteTGPUpload('${u.id}','${u.upload_date}')">Delete</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteTGPUpload(id, date) {
+  if (!confirm(`Delete upload for ${date}? This cannot be undone.`)) return;
+  const { error } = await sb.from('tgp_pricing').delete().eq('id', id);
+  if (error) { toast('Delete failed: ' + error.message, true); return; }
+  toast('Upload deleted');
+  loadTGPStats(); loadTGPHistory(); renderTGPCharts();
+}
+
+// ── LEADS ──
+const LEAD_STATUS_CLASS = { new:'lead-new', contacted:'lead-contacted', qualified:'lead-qualified', converted:'lead-converted', closed:'lead-closed' };
+
+async function loadLeads() {
+  const tbody = document.getElementById('leads-tbody');
+  tbody.innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  const statusFilter = document.getElementById('leads-filter-status').value;
+  const dateFilter   = document.getElementById('leads-filter-date').value;
+  let query = sb.from('sts_leads').select('*').order('created_at',{ascending:false}).limit(200);
+  if (statusFilter) query = query.eq('status', statusFilter);
+  if (dateFilter)   query = query.gte('created_at',dateFilter+'T00:00:00').lte('created_at',dateFilter+'T23:59:59');
+  const { data, error } = await query;
+  if (error || !data) { tbody.innerHTML = `<tr><td colspan="6" class="empty">Error: ${error?.message||'unknown'}</td></tr>`; return; }
+  if (!data.length)   { tbody.innerHTML = '<tr><td colspan="6" class="empty">No leads found</td></tr>'; return; }
+  const counts = { new:0, contacted:0, qualified:0, converted:0 };
+  data.forEach(l => { if (counts[l.status] !== undefined) counts[l.status]++; });
+  document.getElementById('leads-stat-new').textContent       = counts.new;
+  document.getElementById('leads-stat-contacted').textContent = counts.contacted;
+  document.getElementById('leads-stat-qualified').textContent = counts.qualified;
+  document.getElementById('leads-stat-converted').textContent = counts.converted;
   tbody.innerHTML = data.map(l => `
     <tr>
-      <td class="mono">${new Date(l.created_at).toLocaleString('en-AU', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
-      <td class="mono">${l.email || '—'}</td>
-      <td><span class="log-action ${actionColour[l.action]||''}">${l.action}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${l.detail || '—'}</td>
-    </tr>
-  `).join('');
+      <td><div style="font-weight:500">${l.first_name} ${l.last_name}</div><div class="mono">${l.business_name||'—'}</div></td>
+      <td><div style="font-size:13px">${l.phone}</div><div class="mono">${l.email}</div></td>
+      <td style="font-size:13px">${l.fleet_size}</td>
+      <td><span class="badge ${LEAD_STATUS_CLASS[l.status]||''}">${l.status}</span></td>
+      <td class="mono">${new Date(l.created_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td><button class="btn btn-ghost" onclick="openLeadModal(${JSON.stringify(l).replace(/"/g,'&quot;')})">View</button></td>
+    </tr>`).join('');
+}
+
+function openLeadModal(l) {
+  document.getElementById('lead-modal-id').value              = l.id;
+  document.getElementById('lead-detail-name').textContent     = l.first_name + ' ' + l.last_name;
+  document.getElementById('lead-detail-business').textContent = l.business_name || '—';
+  document.getElementById('lead-detail-phone').textContent    = l.phone;
+  document.getElementById('lead-detail-email').textContent    = l.email;
+  document.getElementById('lead-detail-fleet').textContent    = l.fleet_size;
+  document.getElementById('lead-detail-date').textContent     = new Date(l.created_at).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const routesRow = document.getElementById('lead-detail-routes-row');
+  if (l.routes) { document.getElementById('lead-detail-routes').textContent = l.routes; routesRow.style.display='block'; } else { routesRow.style.display='none'; }
+  const msgRow = document.getElementById('lead-detail-message-row');
+  if (l.message) { document.getElementById('lead-detail-message').textContent = l.message; msgRow.style.display='block'; } else { msgRow.style.display='none'; }
+  document.getElementById('lead-modal-status').value = l.status || 'new';
+  document.getElementById('lead-modal-notes').value  = l.notes  || '';
+  document.getElementById('lead-modal').classList.add('open');
+}
+
+function closeLeadModal() { document.getElementById('lead-modal').classList.remove('open'); }
+
+async function saveLeadUpdate() {
+  const id     = document.getElementById('lead-modal-id').value;
+  const status = document.getElementById('lead-modal-status').value;
+  const notes  = document.getElementById('lead-modal-notes').value.trim();
+  const { error } = await sb.from('sts_leads').update({ status, notes }).eq('id', id);
+  if (error) { toast('Save failed: ' + error.message, true); return; }
+  toast('Lead updated ✓');
+  closeLeadModal();
+  loadLeads();
+}
+
+// ── BLOG ──
+async function loadBlogPosts() {
+  const tbody = document.getElementById('blog-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  const { data, error } = await sb.from('sts_blog_posts').select('id,title,category,status,featured,published_at,created_at').order('created_at',{ascending:false});
+  if (error || !data) { tbody.innerHTML = `<tr><td colspan="5" class="empty">Error: ${error?.message||'unknown'}</td></tr>`; return; }
+  if (!data.length)   { tbody.innerHTML = '<tr><td colspan="5" class="empty">No posts yet — click "+ New Post" to create one</td></tr>'; return; }
+  tbody.innerHTML = data.map(p => `
+    <tr>
+      <td><div style="font-weight:500">${p.title}${p.featured?' <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(251,206,7,0.15);color:var(--accent)">FEATURED</span>':''}</div></td>
+      <td style="font-size:12px;color:var(--muted)">${p.category||'—'}</td>
+      <td><span class="badge ${p.status==='published'?'blog-published':'blog-draft'}">${p.status}</span></td>
+      <td class="mono">${p.published_at ? new Date(p.published_at).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost" onclick="openBlogModalEdit('${p.id}')">Edit</button>
+        <button class="btn btn-red"   onclick="deleteBlogPost('${p.id}','${p.title.replace(/'/g,"\\'")}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function openBlogModalEdit(id) {
+  const { data, error } = await sb.from('sts_blog_posts').select('*').eq('id',id).single();
+  if (error || !data) { toast('Failed to load post', true); return; }
+  openBlogModal(data);
+}
+
+function openBlogModal(post=null) {
+  const isNew = !post;
+  document.getElementById('blog-modal-heading').textContent       = isNew ? 'New Post' : 'Edit Post';
+  document.getElementById('blog-modal-id').value                  = post?.id || '';
+  document.getElementById('blog-modal-title').value               = post?.title || '';
+  document.getElementById('blog-modal-slug').value                = post?.slug || '';
+  document.getElementById('blog-modal-category').value            = post?.category || 'Industry News';
+  document.getElementById('blog-modal-excerpt').value             = post?.excerpt || '';
+  document.getElementById('blog-modal-content').value             = post?.content || '';
+  document.getElementById('blog-modal-readtime').value            = post?.read_time || '';
+  document.getElementById('blog-modal-status').value              = post?.status || 'draft';
+  document.getElementById('blog-modal-featured').className        = 'tog' + (post?.featured ? ' on' : '');
+  document.getElementById('blog-modal-error').style.display       = 'none';
+  document.getElementById('blog-modal').classList.add('open');
+}
+
+function closeBlogModal() { document.getElementById('blog-modal').classList.remove('open'); }
+
+function autoSlug() {
+  const title = document.getElementById('blog-modal-title').value;
+  document.getElementById('blog-modal-slug').value = title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+}
+
+async function saveBlogPost() {
+  const id       = document.getElementById('blog-modal-id').value;
+  const title    = document.getElementById('blog-modal-title').value.trim();
+  const slug     = document.getElementById('blog-modal-slug').value.trim();
+  const category = document.getElementById('blog-modal-category').value;
+  const excerpt  = document.getElementById('blog-modal-excerpt').value.trim();
+  const content  = document.getElementById('blog-modal-content').value.trim();
+  const readTime = document.getElementById('blog-modal-readtime').value.trim();
+  const status   = document.getElementById('blog-modal-status').value;
+  const featured = document.getElementById('blog-modal-featured').classList.contains('on');
+  const errEl    = document.getElementById('blog-modal-error');
+  errEl.style.display = 'none';
+  if (!title) { errEl.textContent = 'Title is required.'; errEl.style.display='block'; return; }
+  if (!slug)  { errEl.textContent = 'Slug is required.';  errEl.style.display='block'; return; }
+  const payload = { title, slug, category, excerpt, content, read_time:readTime, status, featured };
+  if (status === 'published') payload.published_at = new Date().toISOString();
+  let error;
+  if (id) {
+    ({ error } = await sb.from('sts_blog_posts').update(payload).eq('id', id));
+  } else {
+    ({ error } = await sb.from('sts_blog_posts').insert(payload));
+  }
+  if (error) { errEl.textContent = error.message; errEl.style.display='block'; return; }
+  toast(id ? 'Post updated ✓' : 'Post created ✓');
+  closeBlogModal();
+  loadBlogPosts();
+}
+
+async function deleteBlogPost(id, title) {
+  if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
+  const { error } = await sb.from('sts_blog_posts').delete().eq('id', id);
+  if (error) { toast('Delete failed: ' + error.message, true); return; }
+  toast('Post deleted');
+  loadBlogPosts();
+}
+
+// ── ANALYTICS ──
+let _anCharts = {};
+
+function destroyAnChart(key) {
+  if (_anCharts[key]) { _anCharts[key].destroy(); delete _anCharts[key]; }
+}
+
+async function loadAnalytics() {
+  const now         = new Date();
+  const today       = now.toISOString().split('T')[0];
+  const yesterday   = new Date(now - 86400000).toISOString().split('T')[0];
+  const weekAgo     = new Date(now - 7*86400000).toISOString().split('T')[0];
+  const prevWeekAgo = new Date(now - 14*86400000).toISOString().split('T')[0];
+  const monthAgo    = new Date(now - 30*86400000).toISOString().split('T')[0];
+
+  const [monthRes, totalRes] = await Promise.all([
+    sb.from('sts_analytics').select('created_at,session_id,section,device,browser').gte('created_at', monthAgo+'T00:00:00').order('created_at',{ascending:true}).limit(10000),
+    sb.from('sts_analytics').select('*',{count:'exact',head:true}),
+  ]);
+
+  const rows       = monthRes.data || [];
+  const totalViews = totalRes.count || 0;
+
+  const todayRows    = rows.filter(r => r.created_at >= today+'T00:00:00');
+  const yestRows     = rows.filter(r => r.created_at >= yesterday+'T00:00:00' && r.created_at < today+'T00:00:00');
+  const weekRows     = rows.filter(r => r.created_at >= weekAgo+'T00:00:00');
+  const prevWeekRows = rows.filter(r => r.created_at >= prevWeekAgo+'T00:00:00' && r.created_at < weekAgo+'T00:00:00');
+
+  const todayViews  = todayRows.length;
+  const yestViews   = yestRows.length;
+  const weekViews   = weekRows.length;
+  const prevWkViews = prevWeekRows.length;
+
+  const sessionsTodayCount    = new Set(todayRows.map(r=>r.session_id)).size;
+  const sessionsYestCount     = new Set(yestRows.map(r=>r.session_id)).size;
+  const sessionsWeekCount     = new Set(weekRows.map(r=>r.session_id)).size;
+  const sessionsWeekPrevCount = new Set(prevWeekRows.map(r=>r.session_id)).size;
+
+  document.getElementById('an-today-views').textContent    = todayViews.toLocaleString();
+  document.getElementById('an-week-views').textContent     = weekViews.toLocaleString();
+  document.getElementById('an-total-views').textContent    = totalViews.toLocaleString();
+  document.getElementById('an-sessions-today').textContent = sessionsTodayCount;
+  document.getElementById('an-sessions-week').textContent  = sessionsWeekCount;
+
+  function trend(curr, prev, label) {
+    if (prev === 0) return '<span style="color:var(--muted)">vs '+label+'</span>';
+    const pct = Math.round(((curr-prev)/prev)*100);
+    return '<span style="color:'+(pct>=0?'var(--green)':'#f87171')+'">'+(pct>=0?'▲':'▼')+' '+Math.abs(pct)+'% vs '+label+'</span>';
+  }
+  document.getElementById('an-today-trend').innerHTML          = trend(todayViews, yestViews, 'yesterday');
+  document.getElementById('an-week-trend').innerHTML           = trend(weekViews, prevWkViews, 'prev week');
+  document.getElementById('an-sessions-today-trend').innerHTML = trend(sessionsTodayCount, sessionsYestCount, 'yesterday');
+  document.getElementById('an-sessions-week-trend').innerHTML  = trend(sessionsWeekCount, sessionsWeekPrevCount, 'prev week');
+
+  const byDate = {};
+  rows.forEach(r => {
+    const d = r.created_at.split('T')[0];
+    if (!byDate[d]) byDate[d] = { views:0, sessions:new Set() };
+    byDate[d].views++;
+    byDate[d].sessions.add(r.session_id);
+  });
+  const dates = Object.keys(byDate).sort();
+
+  destroyAnChart('traffic');
+  _anCharts['traffic'] = new Chart(document.getElementById('an-traffic-chart').getContext('2d'), {
+    type:'line',
+    data:{
+      labels: dates.map(d => { const p=d.split('-'); return p[2]+'/'+p[1]; }),
+      datasets:[
+        { label:'Page Views', data:dates.map(d=>byDate[d].views), borderColor:'#D40000', backgroundColor:'rgba(212,0,0,0.15)', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#D40000' },
+        { label:'Unique Sessions', data:dates.map(d=>byDate[d].sessions.size), borderColor:'#60a5fa', backgroundColor:'rgba(96,165,250,0.1)', fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#60a5fa' }
+      ]
+    },
+    options:{ responsive:true, plugins:{ legend:{labels:{color:'#fff',font:{size:12}}}, tooltip:{mode:'index',intersect:false} }, scales:{ x:{ticks:{color:'#6B7A8D',maxTicksLimit:15},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#6B7A8D'},grid:{color:'rgba(255,255,255,0.06)'},beginAtZero:true} } }
+  });
+
+  const sectionCounts = {};
+  const pageLoadCount = rows.filter(r=>r.section==='page_load').length;
+  rows.forEach(r => {
+    if (!r.section || r.section==='page_load' || r.section.startsWith('faq_')) return;
+    sectionCounts[r.section] = (sectionCounts[r.section]||0)+1;
+  });
+  const secEntries = Object.entries(sectionCounts).sort((a,b)=>b[1]-a[1]).slice(0,9);
+  const allLabels  = ['Page Load',...secEntries.map(e=>e[0])];
+  const allVals    = [pageLoadCount,...secEntries.map(e=>e[1])];
+  const secPalette = ['#D40000','#ff7070','#ff9999','#60a5fa','#93c5fd','#34d399','#6ee7b7','#fbbf24','#c084fc','#f472b6'];
+
+  destroyAnChart('section');
+  _anCharts['section'] = new Chart(document.getElementById('an-section-chart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:allLabels, datasets:[{ data:allVals, backgroundColor:allLabels.map((_,i)=>secPalette[i%secPalette.length]), borderRadius:4 }] },
+    options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#6B7A8D'},grid:{color:'rgba(255,255,255,0.04)'}}, y:{ticks:{color:'#e5e7eb',font:{size:11}},grid:{display:false}} } }
+  });
+
+  destroyAnChart('dist');
+  _anCharts['dist'] = new Chart(document.getElementById('an-dist-chart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:secEntries.map(e=>e[0]), datasets:[{ data:secEntries.map(e=>e[1]), backgroundColor:secPalette.slice(1), borderWidth:2, borderColor:'rgba(0,0,0,0.3)' }] },
+    options:{ responsive:true, plugins:{ legend:{position:'right',labels:{color:'#e5e7eb',font:{size:11},boxWidth:12}} } }
+  });
+
+  const deviceCounts = {};
+  rows.forEach(r=>{ if(r.device) deviceCounts[r.device]=(deviceCounts[r.device]||0)+1; });
+  destroyAnChart('device');
+  _anCharts['device'] = new Chart(document.getElementById('an-device-chart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:Object.keys(deviceCounts).map(k=>k.charAt(0).toUpperCase()+k.slice(1)), datasets:[{ data:Object.values(deviceCounts), backgroundColor:['#60a5fa','#34d399','#fbbf24'], borderWidth:2, borderColor:'rgba(0,0,0,0.3)' }] },
+    options:{ responsive:true, plugins:{ legend:{position:'bottom',labels:{color:'#e5e7eb',font:{size:11},boxWidth:12}} } }
+  });
+
+  const browserCounts = {};
+  rows.forEach(r=>{ if(r.browser) browserCounts[r.browser]=(browserCounts[r.browser]||0)+1; });
+  destroyAnChart('browser');
+  _anCharts['browser'] = new Chart(document.getElementById('an-browser-chart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:Object.keys(browserCounts), datasets:[{ data:Object.values(browserCounts), backgroundColor:['#818cf8','#f472b6','#34d399','#fb923c','#c084fc'], borderWidth:2, borderColor:'rgba(0,0,0,0.3)' }] },
+    options:{ responsive:true, plugins:{ legend:{position:'bottom',labels:{color:'#e5e7eb',font:{size:11},boxWidth:12}} } }
+  });
+
+  const tbody = document.getElementById('an-daily-tbody');
+  tbody.innerHTML = !dates.length ? '<tr><td colspan="3" class="empty">No data yet</td></tr>'
+    : [...dates].reverse().map(d=>'<tr><td class="mono">'+d+'</td><td style="font-weight:500">'+byDate[d].views+'</td><td style="color:var(--primary)">'+byDate[d].sessions.size+'</td></tr>').join('');
+
+  const faqLabels = { 'free-consultation':'Is the consultation really free?','fleet-size':'What size fleet do you work with?','savings':'How much can I realistically save?','contract':'Do I have to lock in a contract?','nsw-only':'Do you only service NSW?','setup-time':'How long does it take to get set up?' };
+  const faqCounts = {};
+  rows.filter(r=>r.section&&r.section.startsWith('faq_')).forEach(r=>{ const k=r.section.replace('faq_',''); faqCounts[k]=(faqCounts[k]||0)+1; });
+  const faqEntries = Object.entries(faqCounts).sort((a,b)=>b[1]-a[1]);
+  const faqEl = document.getElementById('an-faq-container');
+  if (!faqEntries.length) { faqEl.innerHTML='<div class="empty">No FAQ click data yet</div>'; return; }
+  const maxClicks = faqEntries[0][1];
+  faqEl.innerHTML = faqEntries.map(([key,count])=>{ const pct=Math.round((count/maxClicks)*100); const heat=pct>75?'#D40000':pct>50?'#E87722':pct>25?'#FBCE07':'#2899D5'; return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:14px 16px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:13px;font-weight:500">'+(faqLabels[key]||key)+'</span><span style="font-size:12px;color:'+heat+';font-weight:600">'+count+' click'+(count!==1?'s':'')+' &nbsp; '+pct+'%</span></div><div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px"><div style="height:100%;width:'+pct+'%;background:'+heat+';border-radius:2px"></div></div></div>'; }).join('')+'<div style="display:flex;gap:12px;align-items:center;margin-top:12px;font-size:11px;color:var(--muted)"><span>Low</span><div style="flex:1;height:5px;background:linear-gradient(to right,#2899D5,#FBCE07,#E87722,#D40000);border-radius:3px"></div><span>High</span></div>';
 }
 
 // ── TOAST ──
-function toast(msg) {
+function toast(msg, isErr=false) {
   const t = document.getElementById('toast');
-  t.textContent = msg; t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 3000);
+  t.textContent = msg;
+  t.className = isErr ? 'err' : '';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display='none', 3500);
 }
 
 // ── INIT ──
 sb.auth.onAuthStateChange((event, session) => {
   if (session) {
-    sb.from('profiles').select('role').eq('id', session.user.id).single().then(({data}) => {
+    sb.from('profiles').select('role').eq('id',session.user.id).single().then(({data}) => {
       if (data?.role === 'admin') showApp(session.user.email);
     });
   }
