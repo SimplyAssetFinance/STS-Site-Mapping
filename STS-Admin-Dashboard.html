@@ -261,67 +261,72 @@
     <div class="tab-panel" id="tab-tgp">
 
       <!-- UPLOAD + STATS ROW -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:24px">
-        <div class="stat-card" style="grid-column:1/3">
-          <div class="stat-label">AIP Auto-Fetch (Daily, Weekdays)</div>
-          <div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px">
-            <span style="font-size:11px;padding:3px 10px;border-radius:4px;background:rgba(22,163,74,0.15);color:#4ade80;font-weight:600">● AUTO-FETCH ACTIVE</span>
-            <span style="font-size:11px;color:var(--muted)">Mon–Fri 9am AEST from AIP.com.au</span>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="stat-card">
+          <div class="stat-label" style="margin-bottom:12px">Upload Daily Pricing (Excel)</div>
+          <div class="upload-area" style="padding:10px 14px;margin-bottom:10px" onclick="document.getElementById('tgp-file-input').click()">
+            📁 Click to select Excel file (.xlsx / .xls)
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Fetches ULP &amp; Diesel TGP for all 7 capital cities automatically. Use <strong style="color:white">Fetch Now</strong> to pull today's data immediately.</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-blue" onclick="fetchAIPNow()" id="aip-fetch-btn">⬇ Fetch Now from AIP</button>
-            <div style="width:1px;height:32px;background:rgba(255,255,255,0.08)"></div>
-            <div class="upload-area" style="flex:1;min-width:160px;padding:8px 12px" onclick="document.getElementById('tgp-file-input').click()">
-              📁 Or upload manual file (Excel/CSV)
+          <input type="file" id="tgp-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleTGPFileSelect(this)" />
+          <div id="tgp-file-status" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+          <div id="tgp-preview-table" style="max-height:160px;overflow-y:auto;display:none;margin-bottom:10px"></div>
+          <button class="btn btn-blue" onclick="uploadTGPData()" id="tgp-upload-btn" style="display:none">⬆ Upload</button>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Latest Date</div>
+          <div class="stat-value yellow" id="tgp-stat-latest" style="font-size:28px">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tgp-stat-terminals"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Shell Viva (avg)</div>
+          <div class="stat-value" style="color:#D71D28;font-size:32px" id="tgp-stat-shell">—</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">¢ / litre</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">BP / Ampol (avg)</div>
+          <div style="display:flex;gap:16px;align-items:baseline;margin-top:10px">
+            <div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#16A34A" id="tgp-stat-bp">—</div>
+              <div style="font-size:10px;color:var(--muted)">BP</div>
             </div>
-            <input type="file" id="tgp-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleTGPFileSelect(this)" />
-            <button class="btn btn-green" onclick="uploadTGPData()" id="tgp-upload-btn" style="display:none">⬆ Upload</button>
+            <div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#2899D5" id="tgp-stat-ampol">—</div>
+              <div style="font-size:10px;color:var(--muted)">Ampol</div>
+            </div>
           </div>
-          <div id="tgp-file-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
-          <div id="tgp-preview-table" style="margin-top:12px;max-height:160px;overflow-y:auto;display:none"></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Latest Upload</div>
-          <div class="stat-value yellow" id="tgp-stat-latest">—</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px" id="tgp-stat-latest-sub"></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Total Uploads</div>
-          <div class="stat-value blue" id="tgp-stat-count">—</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">historical records</div>
         </div>
       </div>
 
-      <!-- CHARTS ROW -->
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px">
-        <div class="section">
-          <div class="section-header">
-            <div class="section-title">Price Trend</div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <select id="tgp-chart-product" onchange="renderTGPCharts()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px">
-                <option value="">All Products</option>
-              </select>
-              <select id="tgp-chart-range" onchange="renderTGPCharts()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px">
-                <option value="30">Last 30 days</option>
-                <option value="60">Last 60 days</option>
-                <option value="90">Last 90 days</option>
-                <option value="365">Last 12 months</option>
-              </select>
-            </div>
-          </div>
-          <div style="padding:20px">
-            <canvas id="tgp-line-chart" height="200"></canvas>
+      <!-- CHART -->
+      <div class="section" style="margin-bottom:24px">
+        <div class="section-header">
+          <div class="section-title">Diesel TGP — Price Trend</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="tgp-chart-terminal" onchange="renderTGPCharts()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px">
+              <option value="">All Terminals (avg)</option>
+            </select>
+            <select id="tgp-chart-range" onchange="renderTGPCharts()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:5px 10px;color:white !important;font-size:12px">
+              <option value="30">Last 30 days</option>
+              <option value="60">Last 60 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last 12 months</option>
+              <option value="9999">All time</option>
+            </select>
           </div>
         </div>
-        <div class="section">
-          <div class="section-header"><div class="section-title">Latest Prices</div></div>
-          <div style="padding:16px">
-            <table class="tbl">
-              <thead><tr><th>Product</th><th>Price</th><th>Region</th></tr></thead>
-              <tbody id="tgp-latest-tbody"><tr><td colspan="3" class="empty">No data yet</td></tr></tbody>
-            </table>
-          </div>
+        <div style="padding:20px">
+          <canvas id="tgp-line-chart" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- LATEST PRICES TABLE -->
+      <div class="section" style="margin-bottom:24px">
+        <div class="section-header"><div class="section-title">Latest Prices by Terminal</div></div>
+        <div style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>Terminal</th><th style="color:#D71D28">Shell Viva</th><th style="color:#16A34A">BP</th><th style="color:#2899D5">Ampol</th><th>Cheapest</th><th>Spread</th></tr></thead>
+            <tbody id="tgp-latest-tbody"><tr><td colspan="6" class="empty">No data yet</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -336,7 +341,7 @@
           </div>
         </div>
         <table class="tbl">
-          <thead><tr><th>Date</th><th>Source</th><th>Filename</th><th>Rows</th><th>Products</th><th>Regions</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Date</th><th>Terminals</th><th style="color:#D71D28">Shell Viva avg</th><th style="color:#16A34A">BP avg</th><th style="color:#2899D5">Ampol avg</th><th>File</th><th>Actions</th></tr></thead>
           <tbody id="tgp-history-tbody"><tr><td colspan="7" class="empty">No uploads yet</td></tr></tbody>
         </table>
       </div>
@@ -1190,36 +1195,6 @@ async function saveCredentials() {
 let _tgpParsedRows = [];
 let _tgpChart = null;
 
-async function fetchAIPNow() {
-  const btn = document.getElementById('aip-fetch-btn');
-  btn.textContent = '⏳ Fetching…'; btn.disabled = true;
-  document.getElementById('tgp-file-status').textContent = 'Contacting AIP.com.au…';
-  let { data: { session } } = await sb.auth.getSession();
-  if (!session) { const {data:r} = await sb.auth.refreshSession(); session = r?.session; }
-  try {
-    const resp = await fetch(`${SUPABASE_URL}/functions/v1/fetch-aip-tgp`, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${session.access_token}`, 'apikey':SUPABASE_ANON }
-    });
-    const result = await resp.json();
-    if (result.error) {
-      toast('Fetch failed: ' + result.error, true);
-      document.getElementById('tgp-file-status').textContent = 'Fetch failed: ' + result.error;
-    } else if (result.message?.includes('already imported')) {
-      toast('Already up to date — no new dates to import');
-      document.getElementById('tgp-file-status').textContent = result.message;
-    } else {
-      toast('✓ ' + result.message);
-      document.getElementById('tgp-file-status').textContent = result.message;
-      loadTGPStats(); loadTGPHistory(); renderTGPCharts();
-    }
-  } catch(e) {
-    toast('Network error: ' + e.message, true);
-    document.getElementById('tgp-file-status').textContent = '';
-  }
-  btn.textContent = '⬇ Fetch Now from AIP'; btn.disabled = false;
-}
-
 function handleTGPFileSelect(input) {
   const file = input.files[0];
   if (!file) return;
@@ -1230,31 +1205,43 @@ function handleTGPFileSelect(input) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const data = new Uint8Array(e.target.result);
-      const wb   = XLSX.read(data, { type: 'array', cellDates: true });
+      const wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
       if (!rows.length) { document.getElementById('tgp-file-status').textContent = 'File appears empty.'; return; }
-      const headers    = Object.keys(rows[0]);
-      const findCol    = (...terms) => headers.find(h => terms.some(t => h.toLowerCase().includes(t))) || '';
-      const productCol = findCol('product','fuel','grade','type','description','name');
-      const priceCol   = findCol('price','cost','rate','amount','value','cpp','cpl');
-      const regionCol  = findCol('region','state','location','area','zone','site');
-      const unitCol    = findCol('unit','uom','measure');
+      const headers = Object.keys(rows[0]);
+      // Match exact column name first, then partial
+      const col = (name) => headers.find(h => h.trim().toLowerCase() === name.toLowerCase())
+                         || headers.find(h => h.trim().toLowerCase().includes(name.toLowerCase())) || '';
+      const dateCol   = col('date');
+      const termCol   = col('terminal');
+      const shellCol  = col('shell');
+      const bpCol     = col('bp');
+      const ampolCol  = col('ampol');
+      const cheapCol  = col('cheapest');
+      const spreadCol = col('spread');
+      const parseNum  = v => { const n = parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n) ? null : n; };
+      const parseDate = v => { if (!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]; };
       _tgpParsedRows = rows.map(r => ({
-        product:    String(r[productCol] || 'Unknown').trim(),
-        price:      parseFloat(String(r[priceCol] || '0').replace(/[^0-9.-]/g,'')) || 0,
-        region:     String(r[regionCol] || '').trim() || null,
-        unit:       String(r[unitCol]   || 'cpl').trim() || 'cpl',
-        extra_data: r,
-      })).filter(r => r.price > 0);
+        price_date: parseDate(r[dateCol]),
+        terminal:   String(r[termCol] || '').trim(),
+        shell_viva: parseNum(r[shellCol]),
+        bp:         parseNum(r[bpCol]),
+        ampol:      parseNum(r[ampolCol]),
+        cheapest:   parseNum(r[cheapCol]),
+        spread:     parseNum(r[spreadCol]),
+      })).filter(r => r.price_date && r.terminal && (r.shell_viva != null || r.bp != null || r.ampol != null));
+      if (!_tgpParsedRows.length) {
+        document.getElementById('tgp-file-status').textContent = `⚠ No rows parsed. Expected headers: Date, Terminal, Shell Viva, BP, Ampol, Cheapest, Spread. Found: ${headers.join(', ')}`;
+        return;
+      }
       const preview = document.getElementById('tgp-preview-table');
       preview.style.display = 'block';
       preview.innerHTML = `<table class="tbl" style="font-size:11px">
-        <thead><tr><th>Product</th><th>Price</th><th>Region</th><th>Unit</th></tr></thead>
-        <tbody>${_tgpParsedRows.slice(0,10).map(r =>
-          `<tr><td>${r.product}</td><td>${r.price}</td><td>${r.region||'—'}</td><td>${r.unit}</td></tr>`
-        ).join('')}${_tgpParsedRows.length > 10 ? `<tr><td colspan="4" style="color:var(--muted);text-align:center">…and ${_tgpParsedRows.length-10} more rows</td></tr>` : ''}</tbody>
+        <thead><tr><th>Date</th><th>Terminal</th><th style="color:#D71D28">Shell Viva</th><th style="color:#16A34A">BP</th><th style="color:#2899D5">Ampol</th><th>Cheapest</th><th>Spread</th></tr></thead>
+        <tbody>${_tgpParsedRows.slice(0,8).map(r =>
+          `<tr><td>${r.price_date}</td><td>${r.terminal}</td><td style="color:#D71D28">${r.shell_viva??'—'}</td><td style="color:#16A34A">${r.bp??'—'}</td><td style="color:#2899D5">${r.ampol??'—'}</td><td>${r.cheapest??'—'}</td><td>${r.spread??'—'}</td></tr>`
+        ).join('')}${_tgpParsedRows.length > 8 ? `<tr><td colspan="7" style="color:var(--muted);text-align:center">…and ${_tgpParsedRows.length-8} more rows</td></tr>` : ''}</tbody>
       </table>`;
       document.getElementById('tgp-file-status').textContent = `✓ Parsed ${_tgpParsedRows.length} rows — review above then click Upload`;
       document.getElementById('tgp-upload-btn').style.display = 'inline-block';
@@ -1269,19 +1256,15 @@ async function uploadTGPData() {
   if (!_tgpParsedRows.length) { toast('No data to upload', true); return; }
   const btn = document.getElementById('tgp-upload-btn');
   btn.textContent = 'Uploading…'; btn.disabled = true;
-  const today = new Date().toISOString().split('T')[0];
-  const file  = document.getElementById('tgp-file-input').files[0];
+  const file = document.getElementById('tgp-file-input').files[0];
   const { data: { user } } = await sb.auth.getUser();
-  const { data: upload, error: upErr } = await sb.from('tgp_pricing')
-    .insert({ upload_date: today, uploaded_by: user?.id, filename: file?.name || 'unknown', source: 'manual' })
-    .select().single();
-  if (upErr) { toast('Upload failed: ' + upErr.message, true); btn.textContent = '⬆ Upload'; btn.disabled = false; return; }
-  const rows = _tgpParsedRows.map(r => ({ ...r, upload_id: upload.id, upload_date: today }));
+  const rows = _tgpParsedRows.map(r => ({ ...r, filename: file?.name || 'unknown', uploaded_by: user?.id || null }));
   for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await sb.from('tgp_pricing_rows').insert(rows.slice(i, i+200));
-    if (error) { toast('Row insert error: ' + error.message, true); btn.textContent = '⬆ Upload'; btn.disabled = false; return; }
+    const { error } = await sb.from('sts_tgp_prices').upsert(rows.slice(i, i+200), { onConflict: 'price_date,terminal' });
+    if (error) { toast('Upload failed: ' + error.message, true); btn.textContent = '⬆ Upload'; btn.disabled = false; return; }
   }
-  toast(`✓ Uploaded ${rows.length} rows for ${today}`);
+  const dates = [...new Set(rows.map(r => r.price_date))].sort();
+  toast(`✓ Uploaded ${rows.length} rows across ${dates.length} date(s)`);
   btn.textContent = '⬆ Upload'; btn.disabled = false;
   document.getElementById('tgp-file-input').value = '';
   document.getElementById('tgp-preview-table').style.display = 'none';
@@ -1292,66 +1275,86 @@ async function uploadTGPData() {
 }
 
 async function loadTGPStats() {
-  const { data: uploads } = await sb.from('tgp_pricing').select('upload_date').order('upload_date',{ascending:false}).limit(1);
-  if (uploads?.length) {
-    document.getElementById('tgp-stat-latest').textContent = new Date(uploads[0].upload_date).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
-  }
-  const { count } = await sb.from('tgp_pricing').select('*',{count:'exact',head:true});
-  document.getElementById('tgp-stat-count').textContent = count || 0;
-  const { data: latest } = await sb.from('tgp_pricing_rows').select('product,price,region,unit,upload_date').order('upload_date',{ascending:false}).limit(50);
+  const { data: latest } = await sb.from('sts_tgp_prices')
+    .select('price_date,terminal,shell_viva,bp,ampol,cheapest,spread')
+    .order('price_date', { ascending: false })
+    .limit(50);
+  if (!latest?.length) return;
+  const latestDate = latest[0].price_date;
+  const dayRows    = latest.filter(r => r.price_date === latestDate);
+  const avg = (arr, key) => {
+    const vals = arr.map(r => r[key]).filter(v => v != null);
+    return vals.length ? (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(2) : '—';
+  };
+  document.getElementById('tgp-stat-latest').textContent    = new Date(latestDate).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'});
+  document.getElementById('tgp-stat-terminals').textContent = `${dayRows.length} terminal${dayRows.length !== 1 ? 's' : ''}`;
+  document.getElementById('tgp-stat-shell').textContent     = avg(dayRows, 'shell_viva');
+  document.getElementById('tgp-stat-bp').textContent        = avg(dayRows, 'bp');
+  document.getElementById('tgp-stat-ampol').textContent     = avg(dayRows, 'ampol');
+  // Latest prices table
   const tbody = document.getElementById('tgp-latest-tbody');
-  if (!latest?.length) { tbody.innerHTML = '<tr><td colspan="3" class="empty">No data yet</td></tr>'; return; }
-  const seen = new Set();
-  const filtered = latest.filter(r => { const k = r.product+r.region; if(seen.has(k))return false; seen.add(k); return true; });
-  tbody.innerHTML = filtered.slice(0,12).map(r =>
-    `<tr><td style="font-weight:500">${r.product}</td><td style="color:var(--green);font-family:'DM Mono',monospace">${r.price} ${r.unit}</td><td style="color:var(--muted)">${r.region||'—'}</td></tr>`
-  ).join('');
-  const products = [...new Set(latest.map(r => r.product))].sort();
-  const sel = document.getElementById('tgp-chart-product');
-  const cur = sel.value;
-  sel.innerHTML = '<option value="">All Products</option>' + products.map(p => `<option value="${p}">${p}</option>`).join('');
-  if (cur) sel.value = cur;
+  tbody.innerHTML = dayRows.map(r => `
+    <tr>
+      <td style="font-weight:500">${r.terminal}</td>
+      <td style="color:#D71D28;font-family:'DM Mono',monospace;font-weight:600">${r.shell_viva??'—'}</td>
+      <td style="color:#16A34A;font-family:'DM Mono',monospace">${r.bp??'—'}</td>
+      <td style="color:#2899D5;font-family:'DM Mono',monospace">${r.ampol??'—'}</td>
+      <td style="color:var(--accent);font-family:'DM Mono',monospace">${r.cheapest??'—'}</td>
+      <td style="color:var(--muted);font-family:'DM Mono',monospace">${r.spread??'—'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No data</td></tr>';
+  // Populate terminal dropdown
+  const { data: terminals } = await sb.from('sts_tgp_prices').select('terminal').order('terminal');
+  if (terminals) {
+    const unique = [...new Set(terminals.map(r => r.terminal))];
+    const sel = document.getElementById('tgp-chart-terminal');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All Terminals (avg)</option>' + unique.map(t => `<option value="${t}">${t}</option>`).join('');
+    if (cur) sel.value = cur;
+  }
 }
 
 async function renderTGPCharts() {
-  const days    = parseInt(document.getElementById('tgp-chart-range').value) || 30;
-  const product = document.getElementById('tgp-chart-product').value;
-  const since   = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
-  let query = sb.from('tgp_pricing_rows').select('upload_date,product,price,unit').gte('upload_date', since).order('upload_date');
-  if (product) query = query.eq('product', product);
-  const { data } = await query.limit(2000);
+  const days     = parseInt(document.getElementById('tgp-chart-range').value) || 30;
+  const terminal = document.getElementById('tgp-chart-terminal').value;
+  const since    = days >= 9999 ? '2000-01-01' : new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+  let query = sb.from('sts_tgp_prices').select('price_date,shell_viva,bp,ampol').gte('price_date', since).order('price_date');
+  if (terminal) query = query.eq('terminal', terminal);
+  const { data } = await query.limit(5000);
   if (!data?.length) return;
-  const grouped = {};
+  // Group by date, average across terminals
+  const byDate = {};
   data.forEach(r => {
-    if (!grouped[r.product]) grouped[r.product] = {};
-    if (!grouped[r.product][r.upload_date]) grouped[r.product][r.upload_date] = [];
-    grouped[r.product][r.upload_date].push(r.price);
+    if (!byDate[r.price_date]) byDate[r.price_date] = { shell:[], bp:[], ampol:[] };
+    if (r.shell_viva != null) byDate[r.price_date].shell.push(r.shell_viva);
+    if (r.bp        != null) byDate[r.price_date].bp.push(r.bp);
+    if (r.ampol     != null) byDate[r.price_date].ampol.push(r.ampol);
   });
-  const allDates = [...new Set(data.map(r => r.upload_date))].sort();
-  const palette  = ['#2899D5','#FBCE07','#16A34A','#E87722','#D71D28','#8B5CF6','#06B6D4','#F472B6'];
-  const products = Object.keys(grouped).slice(0,8);
-  const datasets = products.map((p,i) => ({
-    label: p,
-    data: allDates.map(d => grouped[p][d] ? +(grouped[p][d].reduce((a,b)=>a+b,0)/grouped[p][d].length).toFixed(4) : null),
-    borderColor: palette[i % palette.length],
-    backgroundColor: palette[i % palette.length] + '22',
-    tension: 0.3, spanGaps: true,
-    pointRadius: allDates.length > 60 ? 0 : 3,
-  }));
+  const dates    = Object.keys(byDate).sort();
+  const avgArr   = arr => arr.length ? +(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(2) : null;
+  const pointR   = dates.length > 60 ? 0 : 3;
+  const labels   = dates.map(d => new Date(d).toLocaleDateString('en-AU',{day:'2-digit',month:'short'}));
   const ctx = document.getElementById('tgp-line-chart').getContext('2d');
   if (_tgpChart) _tgpChart.destroy();
   _tgpChart = new Chart(ctx, {
     type: 'line',
-    data: { labels: allDates.map(d => new Date(d).toLocaleDateString('en-AU',{day:'2-digit',month:'short'})), datasets },
+    data: {
+      labels,
+      datasets: [
+        { label:'Shell Viva', data:dates.map(d=>avgArr(byDate[d].shell)), borderColor:'#D71D28', backgroundColor:'#D71D2822', borderWidth:3, tension:0.3, spanGaps:true, pointRadius:pointR },
+        { label:'BP',         data:dates.map(d=>avgArr(byDate[d].bp)),    borderColor:'#16A34A', backgroundColor:'#16A34A22', borderWidth:2, tension:0.3, spanGaps:true, pointRadius:pointR },
+        { label:'Ampol',      data:dates.map(d=>avgArr(byDate[d].ampol)), borderColor:'#2899D5', backgroundColor:'#2899D522', borderWidth:2, tension:0.3, spanGaps:true, pointRadius:pointR },
+      ]
+    },
     options: {
       responsive: true,
+      interaction: { mode:'index', intersect:false },
       plugins: {
         legend: { labels: { color:'#FFFFFF', font:{ size:11 } } },
-        tooltip: { mode:'index', intersect:false }
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y + '¢' : 'N/A'}` } }
       },
       scales: {
         x: { ticks:{ color:'#6B7A8D', maxTicksLimit:12 }, grid:{ color:'rgba(255,255,255,0.04)' } },
-        y: { ticks:{ color:'#6B7A8D' }, grid:{ color:'rgba(255,255,255,0.06)' }, title:{ display:true, text:'Price (cpl)', color:'#6B7A8D' } }
+        y: { ticks:{ color:'#6B7A8D', callback: v => v+'¢' }, grid:{ color:'rgba(255,255,255,0.06)' }, title:{ display:true, text:'cents per litre', color:'#6B7A8D' } }
       }
     }
   });
@@ -1362,38 +1365,39 @@ async function loadTGPHistory() {
   tbody.innerHTML = '<tr><td colspan="7" class="empty">Loading…</td></tr>';
   const from = document.getElementById('tgp-hist-from').value;
   const to   = document.getElementById('tgp-hist-to').value;
-  let query = sb.from('tgp_pricing').select('*').order('upload_date',{ascending:false}).limit(100);
-  if (from) query = query.gte('upload_date', from);
-  if (to)   query = query.lte('upload_date', to);
-  const { data: uploads } = await query;
-  if (!uploads?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No uploads found</td></tr>'; return; }
-  const ids = uploads.map(u => u.id);
-  const { data: counts } = await sb.from('tgp_pricing_rows').select('upload_id,product,region').in('upload_id', ids);
-  tbody.innerHTML = uploads.map(u => {
-    const rows     = counts?.filter(r => r.upload_id === u.id) || [];
-    const products = [...new Set(rows.map(r => r.product))].length;
-    const regions  = [...new Set(rows.map(r => r.region).filter(Boolean))].length;
-    const isAuto   = u.source === 'aip_auto';
-    const srcBadge = isAuto
-      ? `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(40,153,213,0.15);color:var(--primary);font-weight:600">🤖 AUTO</span>`
-      : `<span style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(22,163,74,0.12);color:#4ade80;font-weight:600">👤 MANUAL</span>`;
+  let query = sb.from('sts_tgp_prices').select('price_date,terminal,shell_viva,bp,ampol,filename').order('price_date',{ascending:false}).limit(500);
+  if (from) query = query.gte('price_date', from);
+  if (to)   query = query.lte('price_date', to);
+  const { data } = await query;
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No uploads found</td></tr>'; return; }
+  const byDate = {};
+  data.forEach(r => {
+    if (!byDate[r.price_date]) byDate[r.price_date] = { rows:[], filename: r.filename };
+    byDate[r.price_date].rows.push(r);
+  });
+  const avg = (arr, key) => {
+    const vals = arr.map(r => r[key]).filter(v => v != null);
+    return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : '—';
+  };
+  tbody.innerHTML = Object.keys(byDate).sort().reverse().map(date => {
+    const { rows, filename } = byDate[date];
     return `<tr>
-      <td style="font-weight:500">${new Date(u.upload_date).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}</td>
-      <td>${srcBadge}</td>
-      <td class="mono">${u.filename||'—'}</td>
-      <td>${rows.length}</td>
-      <td>${products}</td>
-      <td>${regions||'—'}</td>
-      <td><button class="btn btn-red" onclick="deleteTGPUpload('${u.id}','${u.upload_date}')">Delete</button></td>
+      <td style="font-weight:500">${new Date(date).toLocaleDateString('en-AU',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td style="color:var(--muted)">${rows.length}</td>
+      <td style="color:#D71D28;font-family:'DM Mono',monospace">${avg(rows,'shell_viva')}¢</td>
+      <td style="color:#16A34A;font-family:'DM Mono',monospace">${avg(rows,'bp')}¢</td>
+      <td style="color:#2899D5;font-family:'DM Mono',monospace">${avg(rows,'ampol')}¢</td>
+      <td class="mono" style="color:var(--muted);font-size:11px">${filename||'—'}</td>
+      <td><button class="btn btn-red" onclick="deleteTGPDate('${date}')">Delete</button></td>
     </tr>`;
   }).join('');
 }
 
-async function deleteTGPUpload(id, date) {
-  if (!confirm(`Delete upload for ${date}? This cannot be undone.`)) return;
-  const { error } = await sb.from('tgp_pricing').delete().eq('id', id);
+async function deleteTGPDate(date) {
+  if (!confirm(`Delete all TGP data for ${date}? This cannot be undone.`)) return;
+  const { error } = await sb.from('sts_tgp_prices').delete().eq('price_date', date);
   if (error) { toast('Delete failed: ' + error.message, true); return; }
-  toast('Upload deleted');
+  toast(`Deleted pricing for ${date}`);
   loadTGPStats(); loadTGPHistory(); renderTGPCharts();
 }
 
