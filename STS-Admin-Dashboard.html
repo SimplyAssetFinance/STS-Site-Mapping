@@ -162,6 +162,24 @@
   .mono { font-family:'DM Mono',monospace !important; font-size:12px; color:var(--muted); }
   #toast { position:fixed; bottom:24px; right:24px; background:var(--green); color:white; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:600; display:none; z-index:9999; box-shadow:0 8px 24px rgba(0,0,0,0.3); }
   #toast.err { background:var(--red); }
+
+  /* POLISH */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+  .tab-panel.active { animation: fadeUp 0.18s ease; }
+  .stat-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.25); }
+  .tbl tr:hover td { background:rgba(255,255,255,0.04); }
+  .section { transition: box-shadow 0.15s; }
+  .modal input:focus, .modal select:focus, .field-row input:focus, .field-row select:focus,
+  .login-box input:focus { box-shadow: 0 0 0 2px rgba(40,153,213,0.3) !important; }
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.2); }
+
+  /* ROUTE MAPPING EMBED */
+  #tab-routemap { margin: -20px -32px -32px; }
+  .routemap-frame { width:100%; height:calc(100vh - 112px); border:none; display:block; }
 </style>
 </head>
 <body>
@@ -204,6 +222,7 @@
     <button class="tab-btn" onclick="switchTab('blog',this)">✍️ Blog</button>
     <button class="tab-btn" onclick="switchTab('analytics',this)">📊 Analytics</button>
     <button class="tab-btn" onclick="switchTab('websettings',this)">🌐 Website Settings</button>
+    <button class="tab-btn" onclick="switchTab('routemap',this)">🗺 Route Mapping</button>
   </div>
 
   <div class="main">
@@ -714,6 +733,11 @@
         </div>
       </div>
     </div><!-- /tab-websettings -->
+
+    <!-- TAB: ROUTE MAPPING -->
+    <div class="tab-panel" id="tab-routemap">
+      <iframe src="/index.html" class="routemap-frame" title="STS Route Mapping Tool"></iframe>
+    </div><!-- /tab-routemap -->
 
   </div>
 </div>
